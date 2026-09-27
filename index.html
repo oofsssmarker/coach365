@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Coach 365</title>
-<meta name="description" content="แอปโค้ชส่วนตัว 1 ปี: ลดน้ำหนัก เวทที่บ้าน IF เงินออม 100,000">
+<meta name="description" content="แอปโค้ชส่วนตัว 1 ปี: ลดน้ำหนัก เวทที่บ้าน ตรวจท่าด้วย AI บันทึกอาหาร เงินออม 100,000">
 <meta name="theme-color" content="#2B55D9">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
@@ -29,6 +29,21 @@
   <!-- วันนี้ -->
   <section data-view="today">
     <div class="targets" id="targets"></div>
+    <div class="card" id="medCard">
+      <div class="row between"><h2>นั่งสมาธิ</h2><span class="small muted num" id="medToday"></span></div>
+      <div class="breath" id="breath" aria-hidden="true"><span></span></div>
+      <p class="medlabel" id="medLabel">หายใจเข้า 4 วินาที · ออก 6 วินาที · นับลมหายใจ 1 ถึง 10 แล้วเริ่มใหม่</p>
+      <div class="row" id="medBtns">
+        <button class="btn ghost" type="button" data-med="5">5 นาที</button>
+        <button class="btn" type="button" data-med="10">10 นาที</button>
+        <button class="btn ghost" type="button" data-med="15">15 นาที</button>
+        <button class="btn ghost" type="button" id="medStop" hidden>หยุด</button>
+      </div>
+    </div>
+    <details class="card" id="schedCard" open>
+      <summary><h2 style="display:inline">ตารางวันนี้</h2> <span class="small muted" id="restTotal"></span></summary>
+      <div id="schedule" class="sched"></div>
+    </details>
     <form id="logForm" class="card">
       <div class="row between">
         <h2>บันทึกประจำวัน</h2>
@@ -44,6 +59,52 @@
       <label class="f">จด 3 บรรทัด: ทำอะไรดี / พลาดอะไร / พรุ่งนี้ทำอะไร<textarea id="f-note" rows="3"></textarea></label>
       <div class="row"><button class="btn" type="submit">บันทึก</button><span class="muted small" id="saveStatus"></span></div>
     </form>
+    <div class="card">
+      <h2>น้ำหนักเทียบเป้า</h2>
+      <svg class="chart" id="chart" viewBox="0 0 640 260" role="img" aria-label="กราฟน้ำหนัก"></svg>
+      <div class="legend"><span><i class="lg-t"></i>เป้า 100 → 78</span><span><i class="lg-a"></i>น้ำหนักจริง</span></div>
+      <div class="stats" id="bodyStats"></div>
+    </div>
+    <details class="card"><summary><h2 style="display:inline">บันทึกย้อนหลัง</h2></summary><div class="tbl"><table>
+      <thead><tr><th>วันที่</th><th class="num">กก.</th><th class="num">เอว</th><th class="num">ก้าว</th><th class="num">kcal</th><th>IF</th><th>โปรตีน</th><th>เวท</th></tr></thead>
+      <tbody id="history"></tbody></table></div></details>
+  </section>
+
+  <!-- อาหาร -->
+  <section data-view="food" hidden>
+    <div class="card">
+      <div class="row between"><h2>อาหารวันนี้</h2><input type="date" id="foodDate" aria-label="วันที่"></div>
+      <div class="foodsum" id="foodSum"></div>
+      <label class="btn big" for="photoIn">📷 ถ่ายรูปอาหาร</label>
+      <input type="file" id="photoIn" accept="image/*" capture="environment" hidden>
+    </div>
+
+    <div class="card" id="draft" hidden>
+      <h2>มื้อที่กำลังบันทึก</h2>
+      <div id="draftImg" class="draftimg"></div>
+      <button class="btn ghost" id="aiBtn" type="button" hidden>ให้ AI ประเมินจากรูป</button>
+      <div id="draftAi"></div>
+      <div id="draftItems"></div>
+      <div class="row between"><b id="draftTotal"></b></div>
+      <div class="row"><button class="btn" id="draftSave" type="button">บันทึกมื้อนี้</button><button class="btn ghost" id="draftCancel" type="button">ยกเลิก</button></div>
+    </div>
+
+    <details class="card">
+      <summary><h2 style="display:inline">เพิ่มเอง (แม่นกว่ารูป)</h2></summary>
+      <h3>เมนูร้าน</h3>
+      <div class="row"><select id="menuPick" aria-label="เมนูร้าน"></select><input id="menuQty" type="number" value="1" step="0.5" min="0.5" style="width:70px" aria-label="จำนวนจาน"><button class="btn ghost" id="menuAdd" type="button">เพิ่ม</button></div>
+      <h3>ชั่งวัตถุดิบเอง (แม่นที่สุด)</h3>
+      <div class="row"><select id="ingPick" aria-label="วัตถุดิบ"></select><input id="ingQty" type="number" step="1" style="width:80px" aria-label="ปริมาณ"><span id="ingUnit" class="small"></span><button class="btn ghost" id="ingAdd" type="button">เพิ่ม</button></div>
+      <h3>กรอกเอง (จากฉลาก)</h3>
+      <div class="row"><input id="cName" type="text" placeholder="ชื่อ" style="flex:2;min-width:120px"><input id="cKcal" type="number" placeholder="kcal" style="width:80px"><input id="cP" type="number" placeholder="โปรตีน ก." style="width:90px"><button class="btn ghost" id="customAdd" type="button">เพิ่ม</button></div>
+    </details>
+
+    <div class="card"><h2>มื้อที่บันทึกแล้ว</h2><div id="mealList" class="meals"></div></div>
+
+    <div class="card"><h2>แผนอาหาร 7 วัน</h2><div id="weekPlan"></div></div>
+    <div class="card"><h2>สูตรอาหาร (ทำได้จริง ชั่งเป็นกรัม)</h2><div id="recipes"></div></div>
+    <div class="card"><h2>สั่งอาหารนอกบ้านแบบโค้ช</h2><div id="orders" class="orders"></div></div>
+    <div class="card"><h2>รายการซื้อต่อสัปดาห์</h2><div id="shopping"></div></div>
   </section>
 
   <!-- เวท -->
@@ -54,12 +115,14 @@
         <select id="sessionPick" aria-label="เลือกโปรแกรม"></select>
       </div>
       <p class="muted small" id="sessionNote"></p>
+      <button class="btn ghost" type="button" id="postureBtn">ตรวจบุคลิกท่ายืน (คอยื่น ไหล่ห่อ)</button>
     </div>
     <div id="exList" class="exlist"></div>
     <details class="card">
       <summary><h2 style="display:inline">คลังท่าทั้งหมด</h2></summary>
       <div id="library" class="exlist" style="margin-top:12px"></div>
     </details>
+    <p class="small muted">รูปท่าจาก <a href="https://github.com/yuhonas/free-exercise-db" target="_blank" rel="noopener">free-exercise-db</a> (สาธารณสมบัติ) · ตรวจท่าด้วย MediaPipe (Google, Apache-2.0) ประมวลผลในเครื่อง ไม่ส่งวิดีโอออกไป</p>
   </section>
 
   <!-- เงิน -->
@@ -93,19 +156,6 @@
     <div class="card"><h2>รายการล่าสุด</h2><div class="tbl"><table><tbody id="moneyList"></tbody></table></div></div>
   </section>
 
-  <!-- สถิติ -->
-  <section data-view="stats" hidden>
-    <div class="card">
-      <h2>น้ำหนักเทียบเป้า</h2>
-      <svg class="chart" id="chart" viewBox="0 0 640 260" role="img" aria-label="กราฟน้ำหนัก"></svg>
-      <div class="legend"><span><i class="lg-t"></i>เป้า 100 → 78</span><span><i class="lg-a"></i>น้ำหนักจริง</span></div>
-      <div class="stats" id="bodyStats"></div>
-    </div>
-    <div class="card"><h2>บันทึกย้อนหลัง</h2><div class="tbl"><table>
-      <thead><tr><th>วันที่</th><th class="num">กก.</th><th class="num">เอว</th><th class="num">ก้าว</th><th>IF</th><th>โปรตีน</th><th>เวท</th></tr></thead>
-      <tbody id="history"></tbody></table></div></div>
-  </section>
-
   <!-- ตั้งค่า -->
   <section data-view="settings" hidden>
     <div class="card">
@@ -117,13 +167,25 @@
       </div>
       <div id="reminderList" class="remlist"></div>
       <div class="callout">
-        <b>แจ้งเตือนแม่นทุกวันแม้ปิดแอป:</b> ดาวน์โหลดไฟล์ปฏิทินแล้วเปิดด้วย Google Calendar หรือปฏิทินในมือถือ มือถือจะเด้งเตือนตามเวลาเองแม้ไม่ได้เปิดแอป
+        <b>แจ้งเตือนตรงเวลาแม้ปิดแอป:</b> ดาวน์โหลดไฟล์ปฏิทินแล้วเปิดด้วยปฏิทินในมือถือ
         <div class="row" style="margin-top:10px"><button class="btn" id="icsBtn" type="button">ดาวน์โหลดปฏิทินแจ้งเตือน (.ics)</button></div>
       </div>
     </div>
     <div class="card">
+      <h2>AI ประเมินอาหารจากรูป</h2>
+      <p class="small">ใช้ Claude API ด้วย API key ของคุณเอง สมัครและเติมเครดิตที่ console.anthropic.com แล้วสร้าง key มาวางที่นี่ key จะเก็บในเครื่องนี้เท่านั้น และไม่ถูกรวมในไฟล์สำรองข้อมูล</p>
+      <label class="f">API key<input id="aiKey" type="password" autocomplete="off" placeholder="sk-ant-..."></label>
+      <label class="f">โมเดล<select id="aiModel">
+        <option value="claude-opus-5">Claude Opus 5 (แม่นที่สุด ~1.5 บาท/รูป)</option>
+        <option value="claude-sonnet-5">Claude Sonnet 5 (~0.6 บาท/รูป)</option>
+        <option value="claude-haiku-4-5">Claude Haiku 4.5 (ถูกสุด ~0.3 บาท/รูป)</option>
+      </select></label>
+      <div class="row"><button class="btn" id="aiSave" type="button">บันทึก</button><button class="btn ghost" id="aiClear" type="button">ลบ key</button></div>
+      <p class="small muted">ราคาต่อรูปเป็นค่าประมาณ ขึ้นกับขนาดรูปและความยาวคำตอบ</p>
+    </div>
+    <div class="card">
       <h2>สำรองข้อมูล</h2>
-      <p class="small muted">ข้อมูลเก็บในเครื่องนี้เท่านั้น ส่งออกไว้ทุกเดือนกันหาย</p>
+      <p class="small muted">ข้อมูลเก็บในเครื่องนี้เท่านั้น ส่งออกไว้ทุกเดือนกันหาย (รูปอาหารไม่รวมในไฟล์)</p>
       <div class="row">
         <button class="btn ghost" id="exportJson" type="button">ส่งออก (JSON)</button>
         <button class="btn ghost" id="exportCsv" type="button">ส่งออกบันทึก (CSV)</button>
@@ -140,15 +202,17 @@
 
 <nav class="tabbar" role="tablist">
   <button data-tab="today" aria-selected="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v15H4zM4 9h16M9 3v4M15 3v4"/></svg>วันนี้</button>
+  <button data-tab="food"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 3c-2 1-3 4-3 7h3v11"/></svg>อาหาร</button>
   <button data-tab="train"><svg viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></svg>เวท</button>
   <button data-tab="money"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/></svg>เงิน</button>
-  <button data-tab="stats"><svg viewBox="0 0 24 24"><path d="M4 19h16M6 16l4-5 3 3 5-7"/></svg>สถิติ</button>
-  <button data-tab="settings"><svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 6 3 7 3 7H3s3-1 3-7M10 20a2 2 0 0 0 4 0"/></svg>เตือน</button>
+  <button data-tab="settings"><svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 6 3 7 3 7H3s3-1 3-7M10 20a2 2 0 0 0 4 0"/></svg>ตั้งค่า</button>
 </nav>
 
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script src="exercises.js"></script>
+<script src="meals.js"></script>
 <script src="app.js"></script>
+<script src="food.js"></script>
 </body>
 </html>
