@@ -124,8 +124,8 @@
     const l = todayLog(), p = plan(today()), wd = today().getDay(), meals = l.food?.length || 0, target = p.steps;
     const A = [];
     A.push({ t: "07:05", title: "นั่งสมาธิ 10 นาที", sub: "หายใจเข้า 4 ออก 6 แค่นั่งเฉยๆ", done: (l.meditateMin || 0) >= 10, btn: "เริ่มเลย", act: () => startMed(10) });
-    A.push({ t: "07:15", title: "จัดบุคลิก 10 นาที", sub: "3 ท่า แก้คอยื่น ไหล่ห่อ", done: !!l.posture, btn: "ดูท่า", act: () => { $("sessionPick").value = "P"; show("train"); }, alt: "ทำแล้ว", altAct: () => setFlag("posture", "บุคลิกดีขึ้นทุกวัน 👍") });
-    if (p.session) A.push({ t: "07:25", title: "เวท " + SESSIONS[p.session].name, sub: "30 นาที 5 ท่า มีรูปให้ดู", done: !!l.workout, btn: "เปิดท่าวันนี้", act: () => { $("sessionPick").value = ""; show("train"); } });
+    A.push({ t: "07:15", title: "จัดบุคลิก 10 นาที", sub: "3 ท่า แก้คอยื่น ไหล่ห่อ", done: !!l.posture, btn: "▶ เริ่มเลย", act: () => startWorkout("P"), alt: "ทำแล้ว", altAct: () => setFlag("posture", "บุคลิกดีขึ้นทุกวัน 👍") });
+    if (p.session) A.push({ t: "07:25", title: "เวท " + SESSIONS[p.session].name, sub: l.wStart?.[p.session] ? "ค้างไว้อยู่ กดเล่นต่อได้เลย" : "30 นาที 5 ท่า แอปจับเวลาพักและบอกน้ำหนักให้", done: !!l.workout, btn: l.wStart?.[p.session] ? "▶ เล่นต่อ" : "▶ เริ่มเลย", act: () => startWorkout(p.session), alt: "ดูท่าก่อน", altAct: () => { $("sessionPick").value = ""; show("train"); } });
     else A.push({ t: "07:25", title: p.activity, sub: "วันพักเวท เดินเบาๆ พอ", done: !!l.walkAm, btn: "เดินแล้ว", act: () => setFlag("walkAm", "เยี่ยม 🚶") });
     const meal = (t, slot, title, need) => {
       const m = plannedMeal(slot);
@@ -312,11 +312,7 @@
         <div class="small muted">${ex.name} · ${ex.muscles}</div>
         ${sets ? `<div class="sets">${sets}</div>` : ""}
         ${withLog ? `<div class="last">${last ? `ครั้งก่อน (${last.date.slice(5)}): ${last.w ?? "–"} กก. × ${last.r ?? "–"}` : "ยังไม่มีสถิติ เริ่มเบาๆ เน้นท่าถูก"}</div>
-        <div class="inputs">
-          <input type="number" inputmode="decimal" step="0.5" placeholder="กก." aria-label="น้ำหนักที่ใช้" data-f="w" value="${cur.w ?? ""}">
-          <input type="number" inputmode="numeric" placeholder="ครั้ง" aria-label="จำนวนครั้งเซ็ตสุดท้าย" data-f="r" value="${cur.r ?? ""}">
-          <label class="chk" style="padding:6px 8px"><input type="checkbox" data-f="done" ${cur.done ? "checked" : ""}>เสร็จ</label>
-        </div>` : ""}
+        <div class="setsum">${cur.sets?.length ? cur.sets.map((s) => `<span class="pill ${s.done ? "ok" : ""}">${s.done ? "✓ " : ""}${s.w ?? "–"}×${s.r ?? "–"}</span>`).join("") : `<span class="small muted">วันนี้ยังไม่ได้เล่น</span>`}</div>` : ""}
         ${ex.check ? `<button class="btn ghost small checkbtn" type="button" data-check="${id}">🎥 ตรวจท่าด้วยกล้อง</button>` : ""}
       </div>
       <details><summary>วิธีทำ</summary><ol>${ex.cues.map((c) => `<li>${c}</li>`).join("")}</ol>
@@ -340,7 +336,11 @@
       $("exList").innerHTML = s.items.map(([id, sets]) => exCard(id, sets, true)).join("");
     }
     $("finishCard").hidden = !pick;
-    $("finishBtn").textContent = todayLog().workout ? "✅ วันนี้จบเซสชันแล้ว (กดอีกครั้งเพื่อบันทึกซ้ำ)" : (pick === "P" ? "✅ จัดบุคลิกครบแล้ว" : "✅ เล่นครบแล้ว จบเซสชัน");
+    $("startBtn").hidden = !pick;
+    const l = todayLog(), inProgress = !!l.wStart?.[pick];
+    $("startBtn").textContent = (pick === "P" ? l.posture : l.workout) ? "▶ เล่นอีกรอบ" : inProgress ? "▶ เล่นต่อ (ค้างไว้)" : "▶ เริ่มเวิร์กเอาต์";
+    $("finishBtn").textContent = pick === "P" ? "✅ จัดบุคลิกไปแล้ว บันทึกว่าเสร็จ" : "✅ เล่นไปแล้วโดยไม่ได้เปิดแอป บันทึกว่าเสร็จ";
+    renderWkHistory();
     if (!$("library").innerHTML) $("library").innerHTML = Object.keys(EXERCISES).map((id) => exCard(id, "", false)).join("");
     Figures.start();
   }
@@ -360,6 +360,23 @@
     poseCheck(ex.check, ex.th, b.closest("#exList .ex"));
   });
   $("postureBtn").addEventListener("click", () => poseCheck("posture", "ตรวจบุคลิกท่ายืน", null));
+
+  async function startWorkout(key) {
+    try {
+      const { openWorkout } = await import("./workout.js");
+      openWorkout({ sessionKey: key, phase: plan(today()).phase, onFinish: (done) => { renderTrain(); refresh(); if (done) setTimeout(() => show("today"), 400); } });
+    } catch (e) { toast("เปิดโหมดเล่นเวทไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่"); }
+  }
+  $("startBtn").addEventListener("click", () => startWorkout($("sessionPick").value || plan(today()).session));
+  function renderWkHistory() {
+    const rows = Object.keys(S.logs).sort().reverse().flatMap((k) => (S.logs[k].workouts || []).map((w) => ({ date: k, ...w }))).slice(0, 8);
+    const box = $("wkHistory"); box.hidden = !rows.length;
+    if (!rows.length) return;
+    const fmtT = (s) => `${Math.floor(s / 60)} นาที`;
+    box.innerHTML = `<h2>เวิร์กเอาต์ล่าสุด</h2><div class="tbl"><table><tbody>${rows.map((w) => `<tr><td class="num">${w.date.slice(5)}</td><td>${SESSIONS[w.session]?.name || w.session}</td><td class="num">${fmtT(w.dur)}</td><td class="num">${w.sets} เซ็ต</td><td class="num">${fmt(w.vol)} กก.</td><td>${w.prs?.length ? "🏆" + w.prs.length : ""}</td></tr>`).join("")}</tbody></table></div>`;
+  }
+  $("barKg").value = S.barKg ?? "";
+  $("barKg").addEventListener("change", () => { S.barKg = Number($("barKg").value) || 10; save(); toast("บันทึกน้ำหนักบาร์แล้ว"); });
   // ปุ่มเดียวจบเซสชัน: ติ๊กทุกท่า ใช้น้ำหนัก/ครั้งจากครั้งก่อนถ้าไม่ได้กรอก
   $("finishBtn").addEventListener("click", () => {
     const pick = $("sessionPick").value || plan(today()).session; if (!pick) return;
@@ -369,6 +386,7 @@
       if (cur.w == null && prev?.w != null) cur.w = prev.w;
       if (cur.r == null && prev?.r != null) cur.r = prev.r;
       cur.done = true;
+      if (!cur.sets?.length) cur.sets = [{ w: cur.w ?? null, r: cur.r ?? null, done: true }]; else cur.sets.forEach((s) => (s.done = true));
     });
     if (pick === "P") l.posture = true; else l.workout = true;
     save(); renderTrain(); refresh();

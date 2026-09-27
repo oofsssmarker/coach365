@@ -133,12 +133,14 @@
         <select id="sessionPick" aria-label="เลือกโปรแกรม"></select>
       </div>
       <p class="muted small" id="sessionNote"></p>
+      <button class="btn big" type="button" id="startBtn" hidden>▶ เริ่มเวิร์กเอาต์</button>
       <button class="btn ghost" type="button" id="postureBtn">ตรวจบุคลิกท่ายืน (คอยื่น ไหล่ห่อ)</button>
     </div>
+    <div class="card" id="wkHistory" hidden></div>
     <div id="exList" class="exlist"></div>
     <div class="card" id="finishCard" hidden>
-      <button class="btn big" type="button" id="finishBtn">✅ เล่นครบแล้ว จบเซสชัน</button>
-      <p class="small muted" style="margin:0">ไม่ต้องกรอกทุกช่อง กดปุ่มนี้ปุ่มเดียว แอปจะใช้น้ำหนักครั้งก่อนให้ แล้วค่อยแก้ทีหลังถ้าอยาก</p>
+      <button class="btn ghost" type="button" id="finishBtn">✅ เล่นไปแล้วโดยไม่ได้เปิดแอป บันทึกว่าเสร็จ</button>
+      <p class="small muted" style="margin:0">แอปจะใช้น้ำหนักครั้งก่อนให้ แก้ทีหลังได้</p>
     </div>
     <details class="card">
       <summary><h2 style="display:inline">คลังท่าทั้งหมด</h2></summary>
@@ -192,6 +194,10 @@
         <b>แจ้งเตือนตรงเวลาแม้ปิดแอป:</b> ดาวน์โหลดไฟล์ปฏิทินแล้วเปิดด้วยปฏิทินในมือถือ
         <div class="row" style="margin-top:10px"><button class="btn" id="icsBtn" type="button">ดาวน์โหลดปฏิทินแจ้งเตือน (.ics)</button></div>
       </div>
+    </div>
+    <div class="card">
+      <h2>อุปกรณ์</h2>
+      <label class="f">น้ำหนักบาร์เบลเปล่า (กก.) ใช้คำนวณว่าต้องใส่แผ่นข้างละเท่าไร<input id="barKg" type="number" step="0.5" inputmode="decimal" placeholder="10"></label>
     </div>
     <div class="card">
       <h2>AI ประเมินอาหารจากรูป</h2>
