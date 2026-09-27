@@ -56,3 +56,13 @@ Settings → Pages → Source: Deploy from a branch → Branch: `main` / `(root)
 ```bash
 python -m http.server 8365
 ```
+
+## แอป Android (APK)
+
+ทุกครั้งที่ push ขึ้น `main` GitHub Actions จะสร้างไฟล์ APK ให้อัตโนมัติ ดาวน์โหลดได้ที่หน้า **Releases → "Coach 365 Android (ล่าสุด)" → Coach365.apk**
+
+- แอปเป็น Capacitor shell ที่โหลดหน้าเว็บจาก GitHub Pages จึง**อัปเดตเองทุกครั้งที่มีเวอร์ชันใหม่** ไม่ต้องลง APK ซ้ำ
+- **แจ้งเตือนตามเวลาจริงแม้ปิดแอป** ผ่าน Local Notifications (ตั้งให้เองตอนเปิดแอปครั้งแรก และทุกครั้งที่เปลี่ยนรายการเตือนในแท็บตั้งค่า)
+- กล้อง (ตรวจท่า) และการสั่นใช้ได้
+- APK เป็น debug build สำหรับติดตั้งเอง ไม่ได้ขึ้น Play Store ครั้งแรกมือถือจะถามให้อนุญาต "ติดตั้งจากแหล่งที่ไม่รู้จัก"
+- ถ้าอยากลงเอง: `npm install && npx cap add android && npx cap sync && cd android && ./gradlew assembleDebug`

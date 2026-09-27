@@ -179,6 +179,19 @@ h4{margin:10px 0 2px;font:600 14px var(--body)}
 .wk-rest .btn:not(.ghost){background:var(--accent-ink);color:var(--accent)}
 .wk-sum{display:flex;flex-direction:column;gap:14px;padding-top:40px}
 .wk-sum h2{font-size:30px;font-weight:700}
+/* HIIT */
+.hiit{position:fixed;inset:0;z-index:40;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;gap:12px;padding:calc(env(safe-area-inset-top,0px) + 8px) 16px calc(env(safe-area-inset-bottom,0px) + 16px);max-width:720px;margin:0 auto;overflow-y:auto}
+.hiit-top{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px}
+.hiit-stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;border-radius:20px;padding:20px;background:var(--sunk)}
+.hiit-stage.work{background:color-mix(in srgb,var(--bad) 18%,var(--bg))}
+.hiit-stage.rest{background:color-mix(in srgb,var(--good) 18%,var(--bg))}
+.hiit-stage h2{font-size:26px;font-weight:700}
+.hiit-stage p{margin:0;max-width:34ch}
+.hiit-time{font:700 96px/1 var(--display)}
+.hiit-stage .fig.small{max-width:220px;width:100%}
+.hiit-nav{display:flex;gap:10px}
+.hiit-nav .btn{flex:1;padding:14px;font-size:16px}
+.hiit-nav .btn.ghost{flex:0 0 64px}
 /* pose check overlay */
 .pc{position:fixed;inset:0;z-index:50;background:#0B0F0C;color:#E4EAE5;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);overflow-y:auto}
 .pc .btn.ghost{color:#E4EAE5;border-color:#3A463E}

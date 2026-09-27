@@ -1,0 +1,19 @@
+{
+  "appId": "com.oofsss.coach365",
+  "appName": "Coach 365",
+  "webDir": "www",
+  "server": {
+    "url": "https://oofsssmarker.github.io/coach365/",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#EEF1EC"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon",
+      "iconColor": "#2B55D9"
+    }
+  }
+}

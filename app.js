@@ -152,6 +152,7 @@
     A.push({ t: "07:05", title: "นั่งสมาธิ 10 นาที", sub: "หายใจเข้า 4 ออก 6 แค่นั่งเฉยๆ", done: (l.meditateMin || 0) >= 10, btn: "เริ่มเลย", act: () => startMed(10) });
     A.push({ t: "07:15", title: "จัดบุคลิก 10 นาที", sub: "3 ท่า แก้คอยื่น ไหล่ห่อ", done: !!l.posture, btn: "▶ เริ่มเลย", act: () => startWorkout("P"), alt: "ทำแล้ว", altAct: () => setFlag("posture", "บุคลิกดีขึ้นทุกวัน 👍") });
     if (p.session) A.push({ t: "07:25", title: (p.deload ? "🔋 Deload: " : "เวท ") + SESSIONS[p.session].name, sub: l.wStart?.[p.session] ? "ค้างไว้อยู่ กดเล่นต่อได้เลย" : p.deload ? "สัปดาห์พักฟื้น น้ำหนัก 60% 2 เซ็ต เสร็จใน 20 นาที" : "30 นาที 5 ท่า แอปจับเวลาพักและบอกน้ำหนักให้", done: !!l.workout, btn: l.wStart?.[p.session] ? "▶ เล่นต่อ" : "▶ เริ่มเลย", act: () => startWorkout(p.session), alt: "ดูท่าก่อน", altAct: () => { $("sessionPick").value = ""; show("train"); } });
+    else if (wd === 2 || wd === 4) A.push({ t: "07:25", title: p.month >= 7 ? "HIIT 10 นาที" : "เดิน 20 นาที (หรือ HIIT 10 นาที)", sub: p.month >= 7 ? "แรงกระแทกต่ำ ไม่ต้องกระโดด แอปบอกท่าและจับเวลาให้" : "วันพักเวท เดินเบาๆ พอ อยากลอง HIIT ก็ได้", done: !!l.walkAm || !!l.hiit, btn: p.month >= 7 ? "▶ เริ่ม HIIT" : "เดินแล้ว", act: p.month >= 7 ? startHiit : () => setFlag("walkAm", "เยี่ยม 🚶"), alt: p.month >= 7 ? "เดินแทน" : "▶ HIIT", altAct: p.month >= 7 ? () => setFlag("walkAm", "เยี่ยม 🚶") : startHiit });
     else A.push({ t: "07:25", title: p.activity, sub: "วันพักเวท เดินเบาๆ พอ", done: !!l.walkAm, btn: "เดินแล้ว", act: () => setFlag("walkAm", "เยี่ยม 🚶") });
     const meal = (t, slot, title, need) => {
       const m = plannedMeal(slot);
@@ -426,6 +427,36 @@
   $("deloadEvery").value = S.deloadEvery || 7;
   $("deloadEvery").addEventListener("change", () => { S.deloadEvery = Math.min(8, Math.max(6, Number($("deloadEvery").value) || 7)); $("deloadEvery").value = S.deloadEvery; save(); renderTrain(); refresh(); });
 
+  async function startHiit() {
+    try { const { openHiit } = await import("./hiit.js"); openHiit({ onDone: (d) => { refresh(); if (d) celebrate("HIIT เสร็จ 🔥"); } }); }
+    catch (e) { toast("เปิด HIIT ไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่"); }
+  }
+  $("hiitBtn").addEventListener("click", startHiit);
+
+  // ---------- แจ้งเตือนแบบแอป (Android ผ่าน Capacitor) ----------
+  const native = () => window.Capacitor?.isNativePlatform?.() ? window.Capacitor.Plugins?.LocalNotifications : null;
+  async function scheduleNative() {
+    const LN = native(); if (!LN) return false;
+    try {
+      const perm = await LN.requestPermissions(); if (perm.display !== "granted") return false;
+      const pending = await LN.getPending(); if (pending.notifications?.length) await LN.cancel(pending);
+      const list = []; let id = 1;
+      const WD = { SA: [7], SU: [1], weekday: [2, 3, 4, 5, 6] };
+      REMINDERS.forEach((r) => {
+        if (S.rem[r.id] === false) return;
+        r.time.split(",").forEach((t) => {
+          const [hour, minute] = t.split(":").map(Number);
+          const base = { title: "Coach 365", body: r.msg, schedule: { repeats: true, allowWhileIdle: true } };
+          if (r.days === "daily") list.push({ ...base, id: id++, schedule: { ...base.schedule, on: { hour, minute } } });
+          else if (r.days === "M1") list.push({ ...base, id: id++, schedule: { ...base.schedule, on: { day: 1, hour, minute } } });
+          else WD[r.days].forEach((weekday) => list.push({ ...base, id: id++, schedule: { ...base.schedule, on: { weekday, hour, minute } } }));
+        });
+      });
+      await LN.schedule({ notifications: list });
+      return list.length;
+    } catch (e) { return false; }
+  }
+
   async function startWorkout(key) {
     try {
       const { openWorkout } = await import("./workout.js");
@@ -561,15 +592,19 @@
   const dayText = { daily: "ทุกวัน", weekday: "จ–ศ", SA: "เสาร์", SU: "อาทิตย์", M1: "วันที่ 1 ทุกเดือน" };
   function notifSupported() { return "Notification" in window && "serviceWorker" in navigator; }
   function renderSettings() {
-    const st = !notifSupported() ? "เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน (iPhone ต้องติดตั้งลงหน้าจอโฮมก่อน)" :
+    const st = native() ? "แอป Android: แจ้งเตือนตามเวลาจริงแม้ปิดแอป (กดปุ่มด้านล่างถ้ายังไม่เด้ง)" : !notifSupported() ? "เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน (iPhone ต้องติดตั้งลงหน้าจอโฮมก่อน)" :
       Notification.permission === "granted" ? "เปิดแล้ว: แอปจะเตือนตามเวลาขณะที่แอปยังเปิดค้างหรืออยู่เบื้องหลัง" :
       Notification.permission === "denied" ? "ถูกบล็อกไว้ ไปเปิดในการตั้งค่าเว็บไซต์ของเบราว์เซอร์" : "ยังไม่ได้เปิด";
     $("notifState").textContent = st;
-    $("enableNotif").hidden = !notifSupported() || Notification.permission === "granted";
+    $("enableNotif").hidden = !native() && (!notifSupported() || Notification.permission === "granted");
     $("reminderList").innerHTML = REMINDERS.map((r) => `<label class="rem"><span class="t">${r.time.split(",")[0]}${r.time.includes(",") ? "+" : ""}</span><span class="m">${r.msg}<br><span class="small muted">${dayText[r.days]}${r.time.includes(",") ? " · " + r.time.replace(/,/g, ", ") : ""}</span></span><input type="checkbox" data-rem="${r.id}" ${S.rem[r.id] !== false ? "checked" : ""}></label>`).join("");
   }
-  $("reminderList").addEventListener("change", (ev) => { const id = ev.target.dataset.rem; if (id) { S.rem[id] = ev.target.checked; save(); } });
-  $("enableNotif").addEventListener("click", async () => { const p = await Notification.requestPermission(); renderSettings(); if (p === "granted") notify("เปิดแจ้งเตือนแล้ว", "Coach 365 จะเตือนตามตาราง"); });
+  $("reminderList").addEventListener("change", (ev) => { const id = ev.target.dataset.rem; if (id) { S.rem[id] = ev.target.checked; save(); scheduleNative(); } });
+  $("enableNotif").addEventListener("click", async () => {
+    if (native()) { const n = await scheduleNative(); toast(n ? `ตั้งแจ้งเตือนในเครื่องแล้ว ${n} รายการ` : "ไม่ได้รับอนุญาต เปิดในการตั้งค่าแอป"); renderSettings(); return; }
+    const p = await Notification.requestPermission(); renderSettings(); if (p === "granted") notify("เปิดแจ้งเตือนแล้ว", "Coach 365 จะเตือนตามตาราง");
+  });
+  if (native()) scheduleNative();
   $("testNotif").addEventListener("click", () => notifSupported() && Notification.permission === "granted" ? notify("ทดสอบแจ้งเตือน", "ถ้าเห็นข้อความนี้ แสดงว่าใช้ได้") : toast("ยังไม่ได้เปิดการแจ้งเตือน"));
 
   async function notify(title, body) {
