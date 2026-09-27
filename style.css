@@ -143,6 +143,7 @@ h4{margin:10px 0 2px;font:600 14px var(--body)}
 .bodypair .add{cursor:pointer;border:1.5px dashed var(--line)}
 .exchart{display:flex;flex-direction:column;gap:4px;margin-top:8px}
 .exchart .chart{width:100%;height:auto}
+.deload{background:var(--sunk);border-radius:10px;padding:10px 12px;font-size:14px}
 .roadmap{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .rm{border-left:3px solid var(--line);padding:6px 12px;display:flex;flex-direction:column;gap:2px}
 .rm.past{border-color:var(--good);opacity:.7} .rm.now{border-color:var(--accent);background:var(--sunk);border-radius:0 8px 8px 0}

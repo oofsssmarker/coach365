@@ -22,7 +22,7 @@ export function plates(total) {
   return out.length ? out.join(" + ") + " ต่อข้าง" + (side > 0.01 ? ` (ขาด ${side.toFixed(2)})` : "") : "แค่บาร์";
 }
 
-export function openWorkout({ sessionKey, phase, onFinish }) {
+export function openWorkout({ sessionKey, phase, deload = false, onFinish }) {
   const C = window.Coach, S = C.S, dk = C.iso(C.today());
   const ses = SESSIONS[sessionKey];
   const log = (S.logs[dk] = S.logs[dk] || {}); log.lifts = log.lifts || {};
@@ -32,7 +32,9 @@ export function openWorkout({ sessionKey, phase, onFinish }) {
   let cur = 0, rest = null, raf = 0, wake = null;
 
   // ประวัติท่า: ทุกวันที่เคยเล่น (ล่าสุดก่อน)
-  const history = (id) => Object.keys(S.logs).filter((k) => k < dk && S.logs[k].lifts?.[id]?.sets?.some((s) => s.done)).sort().reverse().map((k) => ({ date: k, sets: S.logs[k].lifts[id].sets.filter((s) => s.done) }));
+  // ไม่นับวัน deload เป็นประวัติสำหรับแนะนำน้ำหนัก/PR
+  const history = (id) => Object.keys(S.logs).filter((k) => k < dk && !S.logs[k].deload && S.logs[k].lifts?.[id]?.sets?.some((s) => s.done)).sort().reverse().map((k) => ({ date: k, sets: S.logs[k].lifts[id].sets.filter((s) => s.done) }));
+  const dlW = (w) => (w == null ? null : Math.max(0, Math.round((w * 0.6) * 2) / 2));
   const prBefore = (id) => history(id).reduce((m, h) => Math.max(m, ...h.sets.map((s) => e1rm(s.w, s.r))), 0);
 
   function ensure(id, spec) {
@@ -40,14 +42,16 @@ export function openWorkout({ sessionKey, phase, onFinish }) {
     if (!l.sets) {
       const prev = history(id)[0]?.sets || [];
       const migrate = l.w != null || l.r != null ? [{ w: l.w, r: l.r, done: !!l.done }] : [];
-      l.sets = migrate.length ? migrate : Array.from({ length: spec.sets }, (_, i) => ({ w: prev[i]?.w ?? prev[prev.length - 1]?.w ?? null, r: null, done: false }));
+      const n = deload ? Math.min(2, spec.sets) : spec.sets;
+      l.sets = migrate.length ? migrate : Array.from({ length: n }, (_, i) => { const pw = prev[i]?.w ?? prev[prev.length - 1]?.w ?? null; return { w: deload ? dlW(pw) : pw, r: null, done: false }; });
     }
     return l;
   }
-  // แนะนำน้ำหนัก: ครั้งก่อนทำครบเรปบนทุกเซ็ต → เพิ่ม
+  // แนะนำน้ำหนัก: ครั้งก่อนทำครบเรปบนทุกเซ็ต → เพิ่ม · deload → 60%
   function suggest(id, spec, eq) {
     const prev = history(id)[0]; if (!prev || spec.secs || spec.amrap) return null;
     const w = prev.sets[0]?.w; if (w == null) return null;
+    if (deload) return { w: dlW(w), why: `Deload 60% ของ ${w} กก. ทำสบายๆ ไม่ต้องสุด` };
     const allTop = prev.sets.length >= spec.sets && prev.sets.every((s) => s.r >= spec.hi);
     return allTop ? { w: w + (eq === "bb" ? 2.5 : 1), why: `ครั้งก่อนทำครบ ${spec.hi} ทุกเซ็ต` } : { w, why: prev.sets.every((s) => s.r >= spec.lo) ? "น้ำหนักเดิม เพิ่มครั้งให้ถึงเรปบน" : "น้ำหนักเดิม เน้นท่าถูก" };
   }
@@ -66,7 +70,7 @@ export function openWorkout({ sessionKey, phase, onFinish }) {
     ov.innerHTML = `
       <div class="wk-top">
         <button class="btn ghost small" data-a="close" type="button">ปิด</button>
-        <div class="wk-title"><b>${ses.name}</b><span class="num small muted" id="wkClock">${fmtT(Date.now() - start)}</span></div>
+        <div class="wk-title"><b>${deload ? "🔋 " : ""}${ses.name}</b><span class="num small muted" id="wkClock">${fmtT(Date.now() - start)}</span></div>
         <span class="small muted">ท่า ${cur + 1}/${ses.items.length}</span>
       </div>
       <div class="wk-prog">${ses.items.map((_, i) => `<i class="${i < cur ? "past" : i === cur ? "now" : ""}"></i>`).join("")}</div>
@@ -137,7 +141,7 @@ export function openWorkout({ sessionKey, phase, onFinish }) {
         if (ri && s.r == null) s.r = Number(ri.placeholder.split("–").pop()) || null;
         s.done = true; buzz(30);
         const pr = prBefore(id), now = e1rm(s.w, s.r);
-        if (pr && now > pr) { C.celebrate(`🏆 สถิติใหม่ ${ex(id).th}: ${s.w} × ${s.r}`); }
+        if (!deload && pr && now > pr) { C.celebrate(`🏆 สถิติใหม่ ${ex(id).th}: ${s.w} × ${s.r}`); }
         C.save(); render();
         const allDone = l.sets.every((x) => x.done);
         if (!allDone || cur < ses.items.length - 1) startRest(REST);
@@ -161,9 +165,9 @@ export function openWorkout({ sessionKey, phase, onFinish }) {
   function finish() {
     const dur = Date.now() - start;
     let vol = 0, setsDone = 0; const prs = [];
-    ses.items.forEach(([id]) => { const l = log.lifts[id]; if (!l?.sets) return; const pr = prBefore(id); l.sets.filter((s) => s.done).forEach((s) => { setsDone++; vol += (s.w || 0) * (s.r || 0); if (pr && e1rm(s.w, s.r) > pr && !prs.includes(id)) prs.push(id); }); l.done = l.sets.every((s) => s.done); const b = bestSet(l.sets); if (b) { l.w = b.w; l.r = b.r; } });
-    if (sessionKey === "P") log.posture = true; else log.workout = true;
-    (log.workouts = log.workouts || []).push({ session: sessionKey, dur: Math.round(dur / 1000), vol, sets: setsDone, prs });
+    ses.items.forEach(([id]) => { const l = log.lifts[id]; if (!l?.sets) return; const pr = prBefore(id); l.sets.filter((s) => s.done).forEach((s) => { setsDone++; vol += (s.w || 0) * (s.r || 0); if (!deload && pr && e1rm(s.w, s.r) > pr && !prs.includes(id)) prs.push(id); }); l.done = l.sets.every((s) => s.done); const b = bestSet(l.sets); if (b) { l.w = b.w; l.r = b.r; } });
+    if (sessionKey === "P") log.posture = true; else { log.workout = true; if (deload) log.deload = true; }
+    (log.workouts = log.workouts || []).push({ session: sessionKey, dur: Math.round(dur / 1000), vol, sets: setsDone, prs, deload });
     delete log.wStart[sessionKey]; C.save();
     ov.innerHTML = `<div class="wk-sum">
       <div class="eyebrow">เสร็จแล้ว</div><h2>${ses.name} 🎉</h2>
@@ -174,7 +178,7 @@ export function openWorkout({ sessionKey, phase, onFinish }) {
         <div class="stat ${prs.length ? "good" : ""}"><span class="eyebrow">สถิติใหม่</span><b>${prs.length}</b></div>
       </div>
       ${prs.length ? `<div class="callout">🏆 ${prs.map((id) => EXERCISES[id].th).join(", ")}</div>` : ""}
-      <p class="muted">${vol > 0 ? "ครั้งหน้าดูช่อง 💡 แนะนำ แอปจะบอกเองว่าควรเพิ่มน้ำหนักหรือยัง" : "ครั้งแรกผ่านไปแล้ว ครั้งหน้าจะมีตัวเลขให้เทียบ"}</p>
+      <p class="muted">${deload ? "Deload เสร็จ ร่างกายกำลังซ่อม สัปดาห์หน้ากลับไปน้ำหนักเต็ม จะรู้สึกแรงขึ้น" : vol > 0 ? "ครั้งหน้าดูช่อง 💡 แนะนำ แอปจะบอกเองว่าควรเพิ่มน้ำหนักหรือยัง" : "ครั้งแรกผ่านไปแล้ว ครั้งหน้าจะมีตัวเลขให้เทียบ"}</p>
       <button class="btn big" type="button" data-a="done">ปิด</button></div>`;
     ov.querySelector('[data-a="done"]').addEventListener("click", () => close(true));
     beep(880, .15); setTimeout(() => beep(1175, .15), 180); setTimeout(() => beep(1568, .3), 360); buzz([50, 50, 50, 50, 120]);

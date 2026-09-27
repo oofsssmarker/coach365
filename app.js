@@ -85,7 +85,9 @@
     if (session) activity = "เวท " + SESSIONS[session].name;
     else activity = wd === 6 ? "เดินยาว + Meal prep" : wd === 5 ? "เดินยาว 60–90 นาที" : "เดิน 20 นาที + ยืด";
     const target = TARGETS[mode];
-    return { day: i + 1, month, year, phase, phaseName: P[2], phaseNote: P[5], mode, modeTh: target.th, target, session, activity,
+    const N = S.deloadEvery || 7, deload = ((week - (S.deloadAnchor || 0)) % N + N) % N === N - 1;
+    const cycleWeek = (((week - (S.deloadAnchor || 0)) % N) + N) % N + 1;
+    return { day: i + 1, month, year, phase, phaseName: P[2], phaseNote: deload ? "สัปดาห์ Deload: น้ำหนัก 60% แค่ 2 เซ็ต ทำท่าให้สวย ให้ร่างกายซ่อม" : P[5], mode, modeTh: target.th, target, session, activity, deload, cycleWeek, cycleLen: N, week,
       steps: year === 1 ? STEPS[Math.min(11, month - 1)] : 10000, window: month === 1 ? "12:00–22:00" : mode === "bulk" ? "10:00–20:00" : "12:00–20:00", goal: goalAt(i) };
   }
 
@@ -107,7 +109,7 @@
     const t = today(), p = plan(t), i = idx(t);
     TARGET = p.target;
     $("dayLabel").textContent = i < 0 ? `อีก ${-i} วันเริ่ม` : `ปี ${p.year} · วันที่ ${i + 1 - (p.year - 1) * 365}`;
-    $("phaseLabel").textContent = `${p.phaseName} · เดือน ${p.month}/36 · ${p.modeTh}`;
+    $("phaseLabel").textContent = `${p.phaseName} · เดือน ${p.month}/36 · ${p.modeTh}${p.deload ? " · 🔋 DELOAD" : ""}`;
     const last = lastWeight();
     const pct = last == null ? 0 : p.year === 1 ? Math.max(0, Math.min(1, (START_WEIGHT - last) / (START_WEIGHT - GOAL_WEIGHT))) : Math.max(0, Math.min(1, (i - (p.year - 1) * 365) / 365));
     const C = 2 * Math.PI * 26;
@@ -149,7 +151,7 @@
     const A = [];
     A.push({ t: "07:05", title: "นั่งสมาธิ 10 นาที", sub: "หายใจเข้า 4 ออก 6 แค่นั่งเฉยๆ", done: (l.meditateMin || 0) >= 10, btn: "เริ่มเลย", act: () => startMed(10) });
     A.push({ t: "07:15", title: "จัดบุคลิก 10 นาที", sub: "3 ท่า แก้คอยื่น ไหล่ห่อ", done: !!l.posture, btn: "▶ เริ่มเลย", act: () => startWorkout("P"), alt: "ทำแล้ว", altAct: () => setFlag("posture", "บุคลิกดีขึ้นทุกวัน 👍") });
-    if (p.session) A.push({ t: "07:25", title: "เวท " + SESSIONS[p.session].name, sub: l.wStart?.[p.session] ? "ค้างไว้อยู่ กดเล่นต่อได้เลย" : "30 นาที 5 ท่า แอปจับเวลาพักและบอกน้ำหนักให้", done: !!l.workout, btn: l.wStart?.[p.session] ? "▶ เล่นต่อ" : "▶ เริ่มเลย", act: () => startWorkout(p.session), alt: "ดูท่าก่อน", altAct: () => { $("sessionPick").value = ""; show("train"); } });
+    if (p.session) A.push({ t: "07:25", title: (p.deload ? "🔋 Deload: " : "เวท ") + SESSIONS[p.session].name, sub: l.wStart?.[p.session] ? "ค้างไว้อยู่ กดเล่นต่อได้เลย" : p.deload ? "สัปดาห์พักฟื้น น้ำหนัก 60% 2 เซ็ต เสร็จใน 20 นาที" : "30 นาที 5 ท่า แอปจับเวลาพักและบอกน้ำหนักให้", done: !!l.workout, btn: l.wStart?.[p.session] ? "▶ เล่นต่อ" : "▶ เริ่มเลย", act: () => startWorkout(p.session), alt: "ดูท่าก่อน", altAct: () => { $("sessionPick").value = ""; show("train"); } });
     else A.push({ t: "07:25", title: p.activity, sub: "วันพักเวท เดินเบาๆ พอ", done: !!l.walkAm, btn: "เดินแล้ว", act: () => setFlag("walkAm", "เยี่ยม 🚶") });
     const meal = (t, slot, title, need) => {
       const m = plannedMeal(slot);
@@ -319,7 +321,7 @@
   $("sessionPick").addEventListener("change", renderTrain);
 
   function lastLift(exId, beforeDate) {
-    const keys = Object.keys(S.logs).filter((k) => k < beforeDate).sort().reverse();
+    const keys = Object.keys(S.logs).filter((k) => k < beforeDate && !S.logs[k].deload).sort().reverse();
     for (const k of keys) { const l = S.logs[k].lifts?.[exId]; if (l && (l.w || l.r)) return { date: k, ...l }; }
     return null;
   }
@@ -362,6 +364,7 @@
     }
     $("finishCard").hidden = !pick;
     $("startBtn").hidden = !pick;
+    renderDeload(p);
     const l = todayLog(), inProgress = !!l.wStart?.[pick];
     $("startBtn").textContent = (pick === "P" ? l.posture : l.workout) ? "▶ เล่นอีกรอบ" : inProgress ? "▶ เล่นต่อ (ค้างไว้)" : "▶ เริ่มเวิร์กเอาต์";
     $("finishBtn").textContent = pick === "P" ? "✅ จัดบุคลิกไปแล้ว บันทึกว่าเสร็จ" : "✅ เล่นไปแล้วโดยไม่ได้เปิดแอป บันทึกว่าเสร็จ";
@@ -386,10 +389,47 @@
   });
   $("postureBtn").addEventListener("click", () => poseCheck("posture", "ตรวจบุคลิกท่ายืน", null));
 
+  // ---------- Deload ----------
+  // ตัน = ท่าหลักไม่มีท่าไหนแรงขึ้นเลยใน 3 เซสชันล่าสุด (ไม่นับสัปดาห์ deload)
+  function stalled() {
+    const e1 = (s) => (s.w && s.r ? s.w * (1 + s.r / 30) : 0);
+    const days = Object.keys(S.logs).filter((k) => S.logs[k].workout && !S.logs[k].deload).sort();
+    if (days.length < 4) return false;
+    const mains = ["goblet", "rdl", "row", "floorpress", "ohp"];
+    let anyProgress = false;
+    mains.forEach((id) => {
+      const hist = days.map((k) => { const sets = (S.logs[k].lifts?.[id]?.sets || []).filter((s) => s.done); return sets.length ? Math.max(...sets.map(e1)) : null; }).filter((v) => v != null);
+      if (hist.length < 4) return;
+      const last3 = hist.slice(-3), before = Math.max(...hist.slice(0, -3));
+      if (Math.max(...last3) > before + 0.5) anyProgress = true;
+    });
+    return !anyProgress;
+  }
+  function renderDeload(p) {
+    const box = $("deloadCard"), w = p.week;
+    const nextIn = p.deload ? 0 : p.cycleLen - p.cycleWeek;
+    const isStall = !p.deload && stalled() && S.stallDismissed !== w;
+    box.innerHTML = p.deload
+      ? `<div class="row between"><b>🔋 สัปดาห์ Deload (สัปดาห์ ${p.cycleWeek}/${p.cycleLen} ของรอบ)</b><button class="btn ghost small" type="button" data-dl="skip">ยังแรงดี ข้ามไปก่อน</button></div><p class="small" style="margin:6px 0 0">น้ำหนัก 60% ของครั้งก่อน 2 เซ็ต ครบเรปสบายๆ ไม่ต้องล้า สัปดาห์หน้ากลับมาเต็มที่ ร่างกายจะแรงขึ้นกว่าเดิม</p>`
+      : `<div class="row between"><span class="small">รอบ ${p.cycleLen} สัปดาห์ · สัปดาห์ที่ ${p.cycleWeek} · Deload ในอีก ${nextIn} สัปดาห์</span><button class="btn ghost small" type="button" data-dl="now">รู้สึกล้าจัด เริ่ม Deload สัปดาห์นี้</button></div>` +
+        (isStall ? `<div class="callout" style="margin-top:8px"><b>⚠️ น้ำหนักบาร์ไม่ขึ้นมา 3 ครั้งติด</b> สัญญาณว่าพักไม่พอ แนะนำ Deload สัปดาห์นี้ แล้วเช็กการนอนกับโปรตีน <div class="row" style="margin-top:8px"><button class="btn small" type="button" data-dl="now">เริ่ม Deload</button><button class="btn ghost small" type="button" data-dl="dismiss">สัปดาห์นี้ลองต่ออีกที</button></div></div>` : "");
+    box.hidden = !p.session && !p.deload;
+  }
+  $("deloadCard").addEventListener("click", (e) => {
+    const a = e.target.dataset.dl; if (!a) return;
+    const p = plan(today()), N = p.cycleLen;
+    if (a === "now") { S.deloadAnchor = p.week - (N - 1); toast("สัปดาห์นี้เป็น Deload แล้ว 🔋"); }
+    if (a === "skip") { S.deloadAnchor = p.week + 1; toast("ข้าม Deload รอบนี้ รอบใหม่เริ่มสัปดาห์หน้า"); }
+    if (a === "dismiss") S.stallDismissed = p.week;
+    save(); renderTrain(); refresh();
+  });
+  $("deloadEvery").value = S.deloadEvery || 7;
+  $("deloadEvery").addEventListener("change", () => { S.deloadEvery = Math.min(8, Math.max(6, Number($("deloadEvery").value) || 7)); $("deloadEvery").value = S.deloadEvery; save(); renderTrain(); refresh(); });
+
   async function startWorkout(key) {
     try {
       const { openWorkout } = await import("./workout.js");
-      openWorkout({ sessionKey: key, phase: plan(today()).phase, onFinish: (done) => { renderTrain(); refresh(); if (done) setTimeout(() => show("today"), 400); } });
+      openWorkout({ sessionKey: key, phase: plan(today()).phase, deload: plan(today()).deload, onFinish: (done) => { renderTrain(); refresh(); if (done) setTimeout(() => show("today"), 400); } });
     } catch (e) { toast("เปิดโหมดเล่นเวทไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่"); }
   }
   $("startBtn").addEventListener("click", () => startWorkout($("sessionPick").value || plan(today()).session));
@@ -398,7 +438,7 @@
     const box = $("wkHistory"); box.hidden = !rows.length;
     if (!rows.length) return;
     const fmtT = (s) => `${Math.floor(s / 60)} นาที`;
-    box.innerHTML = `<h2>เวิร์กเอาต์ล่าสุด</h2><div class="tbl"><table><tbody>${rows.map((w) => `<tr><td class="num">${w.date.slice(5)}</td><td>${SESSIONS[w.session]?.name || w.session}</td><td class="num">${fmtT(w.dur)}</td><td class="num">${w.sets} เซ็ต</td><td class="num">${fmt(w.vol)} กก.</td><td>${w.prs?.length ? "🏆" + w.prs.length : ""}</td></tr>`).join("")}</tbody></table></div>`;
+    box.innerHTML = `<h2>เวิร์กเอาต์ล่าสุด</h2><div class="tbl"><table><tbody>${rows.map((w) => `<tr><td class="num">${w.date.slice(5)}</td><td>${w.deload ? "🔋 " : ""}${SESSIONS[w.session]?.name || w.session}</td><td class="num">${fmtT(w.dur)}</td><td class="num">${w.sets} เซ็ต</td><td class="num">${fmt(w.vol)} กก.</td><td>${w.prs?.length ? "🏆" + w.prs.length : ""}</td></tr>`).join("")}</tbody></table></div>`;
   }
   $("barKg").value = S.barKg ?? "";
   $("barKg").addEventListener("change", () => { S.barKg = Number($("barKg").value) || 10; save(); toast("บันทึกน้ำหนักบาร์แล้ว"); });

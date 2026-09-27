@@ -7,7 +7,7 @@
 
   // ---------- กราฟความก้าวหน้าต่อท่า (ใช้ทั้งใน player และคลังท่า) ----------
   window.exChart = function (id, opts = {}) {
-    const pts = days().map((k) => {
+    const pts = days().filter((k) => !logs()[k].deload).map((k) => {
       const sets = (logs()[k].lifts?.[id]?.sets || []).filter((s) => s.done && s.r);
       if (!sets.length) return null;
       const best = sets.reduce((b, s) => (e1rm(s.w || 0, s.r) > e1rm(b.w || 0, b.r) ? s : b));
