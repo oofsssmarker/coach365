@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Coach 365</title>
+<meta name="description" content="แอปโค้ชส่วนตัว 1 ปี: ลดน้ำหนัก เวทที่บ้าน IF เงินออม 100,000">
+<meta name="theme-color" content="#2B55D9">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Coach 365">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow" id="phaseLabel">เฟส 1 · เดือน 1</div>
+      <h1 id="dayLabel">วันที่ 1</h1>
+    </div>
+    <div class="ring" id="goalRing" aria-label="ความคืบหน้าน้ำหนัก"></div>
+  </header>
+
+  <!-- วันนี้ -->
+  <section data-view="today">
+    <div class="targets" id="targets"></div>
+    <form id="logForm" class="card">
+      <div class="row between">
+        <h2>บันทึกประจำวัน</h2>
+        <input type="date" id="logDate" aria-label="วันที่">
+      </div>
+      <div class="fields">
+        <label class="f">น้ำหนัก (กก.)<input id="f-weight" type="number" step="0.1" inputmode="decimal" placeholder="100.0"></label>
+        <label class="f">รอบเอว (ซม.)<input id="f-waist" type="number" step="0.5" inputmode="decimal" placeholder="วันอาทิตย์"></label>
+        <label class="f">ก้าวเดิน<input id="f-steps" type="number" step="100" inputmode="numeric" placeholder="0"></label>
+        <label class="f">ค่ากิน (บาท)<input id="f-spend" type="number" step="1" inputmode="numeric" placeholder="≤150"></label>
+      </div>
+      <div class="checks" id="checks"></div>
+      <label class="f">จด 3 บรรทัด: ทำอะไรดี / พลาดอะไร / พรุ่งนี้ทำอะไร<textarea id="f-note" rows="3"></textarea></label>
+      <div class="row"><button class="btn" type="submit">บันทึก</button><span class="muted small" id="saveStatus"></span></div>
+    </form>
+  </section>
+
+  <!-- เวท -->
+  <section data-view="train" hidden>
+    <div class="card">
+      <div class="row between">
+        <h2 id="sessionTitle">เวทวันนี้</h2>
+        <select id="sessionPick" aria-label="เลือกโปรแกรม"></select>
+      </div>
+      <p class="muted small" id="sessionNote"></p>
+    </div>
+    <div id="exList" class="exlist"></div>
+    <details class="card">
+      <summary><h2 style="display:inline">คลังท่าทั้งหมด</h2></summary>
+      <div id="library" class="exlist" style="margin-top:12px"></div>
+    </details>
+  </section>
+
+  <!-- เงิน -->
+  <section data-view="money" hidden>
+    <div class="card">
+      <h2>เป้าเงินเก็บ 100,000 บาท</h2>
+      <div class="bar"><span id="saveBar"></span></div>
+      <div class="stats" id="moneyStats"></div>
+    </div>
+    <div class="card">
+      <h2>Passive income</h2>
+      <label class="f">รายได้ passive เฉลี่ยต่อเดือน (บาท)<input id="passiveMonthly" type="number" inputmode="numeric" placeholder="0"></label>
+      <div class="stats" id="passiveStats"></div>
+    </div>
+    <form class="card" id="moneyForm">
+      <h2>เพิ่มรายการ</h2>
+      <div class="fields">
+        <label class="f">วันที่<input id="m-date" type="date"></label>
+        <label class="f">ประเภท<select id="m-type">
+          <option value="save">ออมจากเงินเดือน</option>
+          <option value="invest">ลงทุน (กองทุน/S&amp;P)</option>
+          <option value="side">รายได้งานเสริม (เก็บ)</option>
+          <option value="passive">รายได้ passive</option>
+          <option value="withdraw">ถอนออก</option>
+        </select></label>
+        <label class="f">จำนวน (บาท)<input id="m-amount" type="number" inputmode="numeric" required></label>
+        <label class="f">โน้ต<input id="m-note" type="text" placeholder="เช่น งาน n8n ร้านกาแฟ"></label>
+      </div>
+      <button class="btn" type="submit">เพิ่ม</button>
+    </form>
+    <div class="card"><h2>รายการล่าสุด</h2><div class="tbl"><table><tbody id="moneyList"></tbody></table></div></div>
+  </section>
+
+  <!-- สถิติ -->
+  <section data-view="stats" hidden>
+    <div class="card">
+      <h2>น้ำหนักเทียบเป้า</h2>
+      <svg class="chart" id="chart" viewBox="0 0 640 260" role="img" aria-label="กราฟน้ำหนัก"></svg>
+      <div class="legend"><span><i class="lg-t"></i>เป้า 100 → 78</span><span><i class="lg-a"></i>น้ำหนักจริง</span></div>
+      <div class="stats" id="bodyStats"></div>
+    </div>
+    <div class="card"><h2>บันทึกย้อนหลัง</h2><div class="tbl"><table>
+      <thead><tr><th>วันที่</th><th class="num">กก.</th><th class="num">เอว</th><th class="num">ก้าว</th><th>IF</th><th>โปรตีน</th><th>เวท</th></tr></thead>
+      <tbody id="history"></tbody></table></div></div>
+  </section>
+
+  <!-- ตั้งค่า -->
+  <section data-view="settings" hidden>
+    <div class="card">
+      <h2>แจ้งเตือน</h2>
+      <p class="small muted" id="notifState"></p>
+      <div class="row">
+        <button class="btn" id="enableNotif" type="button">เปิดการแจ้งเตือน</button>
+        <button class="btn ghost" id="testNotif" type="button">ทดสอบ</button>
+      </div>
+      <div id="reminderList" class="remlist"></div>
+      <div class="callout">
+        <b>แจ้งเตือนแม่นทุกวันแม้ปิดแอป:</b> ดาวน์โหลดไฟล์ปฏิทินแล้วเปิดด้วย Google Calendar หรือปฏิทินในมือถือ มือถือจะเด้งเตือนตามเวลาเองแม้ไม่ได้เปิดแอป
+        <div class="row" style="margin-top:10px"><button class="btn" id="icsBtn" type="button">ดาวน์โหลดปฏิทินแจ้งเตือน (.ics)</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>สำรองข้อมูล</h2>
+      <p class="small muted">ข้อมูลเก็บในเครื่องนี้เท่านั้น ส่งออกไว้ทุกเดือนกันหาย</p>
+      <div class="row">
+        <button class="btn ghost" id="exportJson" type="button">ส่งออก (JSON)</button>
+        <button class="btn ghost" id="exportCsv" type="button">ส่งออกบันทึก (CSV)</button>
+        <label class="btn ghost">นำเข้า<input type="file" id="importJson" accept="application/json" hidden></label>
+      </div>
+    </div>
+    <div class="card small">
+      <h2>ติดตั้งลงมือถือ</h2>
+      <p><b>Android (Chrome):</b> เมนู ⋮ → "ติดตั้งแอป" หรือ "เพิ่มลงในหน้าจอหลัก"</p>
+      <p><b>iPhone (Safari):</b> ปุ่มแชร์ → "เพิ่มไปยังหน้าจอโฮม" (ต้องติดตั้งก่อนถึงจะเปิดแจ้งเตือนได้ iOS 16.4+)</p>
+    </div>
+  </section>
+</main>
+
+<nav class="tabbar" role="tablist">
+  <button data-tab="today" aria-selected="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v15H4zM4 9h16M9 3v4M15 3v4"/></svg>วันนี้</button>
+  <button data-tab="train"><svg viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></svg>เวท</button>
+  <button data-tab="money"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/></svg>เงิน</button>
+  <button data-tab="stats"><svg viewBox="0 0 24 24"><path d="M4 19h16M6 16l4-5 3 3 5-7"/></svg>สถิติ</button>
+  <button data-tab="settings"><svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 6 3 7 3 7H3s3-1 3-7M10 20a2 2 0 0 0 4 0"/></svg>เตือน</button>
+</nav>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="exercises.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
