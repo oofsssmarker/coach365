@@ -85,6 +85,7 @@ export function openWorkout({ sessionKey, phase, onFinish }) {
         </tbody></table>
         <div class="row"><button class="btn ghost small" type="button" data-a="addset">+ เพิ่มเซ็ต</button>${l.sets.length > 1 ? `<button class="btn ghost small" type="button" data-a="delset">− ลบเซ็ตสุดท้าย</button>` : ""}${ex.check ? `<button class="btn ghost small" type="button" data-a="pose">🎥 ตรวจท่า</button>` : ""}</div>
         ${pr ? `<div class="small muted">สถิติสูงสุดของคุณ (e1RM) ${pr.toFixed(1)} กก.</div>` : ""}
+        ${history(id).length ? `<details class="wk-how"><summary>📈 กราฟความก้าวหน้า</summary>${window.exChart ? window.exChart(id) : ""}</details>` : ""}
         <details class="wk-how"><summary>วิธีทำ + จุดที่มักผิด</summary><ol>${ex.cues.map((c) => `<li>${c}</li>`).join("")}</ol><div class="small"><b>ระวัง:</b> ${ex.mistake}</div>
           ${history(id).length ? `<div class="small" style="margin-top:8px"><b>ประวัติ:</b> ${history(id).slice(0, 5).map((h) => { const b = bestSet(h.sets); return `${h.date.slice(5)} ${b ? `${b.w ?? "–"}×${b.r}` : ""}`; }).join(" · ")}</div>` : ""}</details>
       </div>

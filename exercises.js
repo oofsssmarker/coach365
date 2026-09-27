@@ -104,6 +104,14 @@ const SESSIONS = {
   U2: { name: "Upper 2 (ปริมาณ)", items: [["pushup", "4×เกือบหมดแรง"], ["dbrow", "4×10–12/ข้าง"], ["ohp", "3×10–12"], ["revfly", "3×15"], ["curl", "3×12"]] },
   L2: { name: "Lower 2 (ปริมาณ)", items: [["rdl", "4×6–8"], ["split", "3×10/ข้าง"], ["bridge", "4×10–12"], ["superman", "3×10"], ["deadbug", "3×10/ข้าง"]] },
   P: { name: "จัดบุคลิก 10 นาที (ทุกเช้า)", items: [["revfly", "2×15"], ["hipflexor", "30 วิ/ข้าง"], ["superman", "2×10"]] },
+  // ปี 2–3: Push / Pull / Legs (สร้างกล้าม)
+  PUSH: { name: "Push (อก ไหล่ หลังแขน)", items: [["floorpress", "4×6–10"], ["ohp", "4×8–12"], ["pushup", "3×เกือบหมดแรง"], ["triceps", "3×10–15"]] },
+  PULL: { name: "Pull (หลัง หน้าแขน)", items: [["row", "4×6–10"], ["dbrow", "4×10–12/ข้าง"], ["revfly", "3×15"], ["curl", "3×8–12"], ["superman", "3×12"]] },
+  LEGS: { name: "Legs (ขา ก้น)", items: [["goblet", "4×8–12"], ["rdl", "4×6–10"], ["split", "3×10/ข้าง"], ["bridge", "4×10–15"], ["calf", "4×12–20"], ["plank", "3×45 วิ"]] },
+  // ปี 3: เพิ่มความหนัก (เซ็ตแรกหนัก เซ็ตหลังปริมาณ)
+  PUSH2: { name: "Push หนัก", items: [["floorpress", "5×5"], ["ohp", "4×6–8"], ["pushup", "3×เกือบหมดแรง"], ["triceps", "3×12–15"]] },
+  PULL2: { name: "Pull หนัก", items: [["row", "5×5"], ["dbrow", "4×8–10/ข้าง"], ["revfly", "3×15–20"], ["curl", "4×8–10"]] },
+  LEGS2: { name: "Legs หนัก", items: [["rdl", "5×5"], ["goblet", "4×10–12"], ["split", "4×8/ข้าง"], ["bridge", "4×12"], ["calf", "4×15"], ["deadbug", "3×10/ข้าง"]] },
 };
 
 // รูปสลับ 2 จังหวะ

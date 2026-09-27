@@ -128,6 +128,25 @@ h4{margin:10px 0 2px;font:600 14px var(--body)}
 .srow{display:grid;grid-template-columns:52px 1fr;gap:10px;padding:6px 8px;border-left:3px solid transparent;font-size:14px}
 .srow.rest{border-left-color:var(--good)}
 .srow.now{background:var(--sunk);border-radius:6px;font-weight:600}
+/* extras */
+.cups{display:flex;gap:6px;flex-wrap:wrap}
+.cup{width:38px;height:38px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);font-size:18px;cursor:pointer;opacity:.35}
+.cup.on{opacity:1;border-color:var(--accent);background:color-mix(in srgb,var(--accent) 15%,transparent)}
+.heat{display:grid;grid-template-columns:repeat(auto-fill,minmax(0,1fr));grid-auto-flow:row;gap:3px;grid-template-columns:repeat(14,1fr)}
+.heat i{aspect-ratio:1;border-radius:3px;background:var(--sunk)}
+.heat .h1{background:color-mix(in srgb,var(--good) 25%,var(--sunk))} .heat .h2{background:color-mix(in srgb,var(--good) 45%,var(--sunk))} .heat .h3{background:color-mix(in srgb,var(--good) 65%,var(--sunk))} .heat .h4{background:color-mix(in srgb,var(--good) 85%,var(--sunk))} .heat .h5{background:var(--good)}
+.plainlist{margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.bodygrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.bodycol{display:flex;flex-direction:column;gap:4px}
+.bodypair{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+.bodypair img,.bodypair .noimg{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:6px;background:var(--sunk);display:grid;place-items:center;font-size:18px;color:var(--muted)}
+.bodypair .add{cursor:pointer;border:1.5px dashed var(--line)}
+.exchart{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.exchart .chart{width:100%;height:auto}
+.roadmap{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.rm{border-left:3px solid var(--line);padding:6px 12px;display:flex;flex-direction:column;gap:2px}
+.rm.past{border-color:var(--good);opacity:.7} .rm.now{border-color:var(--accent);background:var(--sunk);border-radius:0 8px 8px 0}
+.rm-h{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
 /* workout player */
 .setsum{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .wk{position:fixed;inset:0;z-index:40;background:var(--bg);color:var(--ink);overflow-y:auto;padding:calc(env(safe-area-inset-top,0px) + 8px) 16px calc(env(safe-area-inset-bottom,0px) + 90px);display:flex;flex-direction:column;gap:12px;max-width:720px;margin:0 auto}

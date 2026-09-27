@@ -5,6 +5,27 @@
   const START_WEIGHT = 100, GOAL_WEIGHT = 78, SAVE_GOAL = 100000, PASSIVE_GOAL_DAY = 300;
   const GOAL_END = new Date(2027, 8, 27);
   const STEPS = [5000, 7000, 9000, 10000, 11000, 12000, 12000, 12000, 12000, 12000, 12000, 12000];
+  const TOTAL_DAYS = 1095;
+  // แผน 3 ปี: [เดือนเริ่ม, เดือนจบ, ชื่อ, โหมดอาหาร, โปรแกรมเวท, โน้ต]
+  const PHASES = [
+    [1, 3, "ปี 1 · ฐาน", "cut", "AB", "เน้นท่าถูก Full body 3 วัน สร้างนิสัย"],
+    [4, 6, "ปี 1 · ลดไขมัน", "cut", "UL", "Upper/Lower 4 วัน เพิ่มน้ำหนักทุกสัปดาห์"],
+    [7, 9, "ปี 1 · ลดไขมัน + กล้าม", "cut", "UL", "+HIIT 10 นาที 2 ครั้ง/สัปดาห์"],
+    [10, 12, "ปี 1 · ขัดเกลา", "cut", "UL", "ถึง 78–80 กก. Deload ทุก 6–8 สัปดาห์"],
+    [13, 15, "ปี 2 · รีเซ็ตเมตาบอลิซึม", "maintain", "UL", "กินเพิ่มทีละ 100 kcal/สัปดาห์ น้ำหนักนิ่ง แรงขึ้น"],
+    [16, 21, "ปี 2 · สร้างกล้าม", "bulk", "PPL", "Push/Pull/Legs 5 วัน +0.5 กก./เดือน (ไม่เกิน +1)"],
+    [22, 24, "ปี 2 · ตัดไขมันสั้น", "minicut", "PPL", "4–6 สัปดาห์ เห็นกล้ามที่สร้างมา แล้วกลับไป maintain"],
+    [25, 30, "ปี 3 · สร้างกล้ามรอบ 2", "bulk", "PPL2", "เซ็ตหนัก 5×5 ท่าหลัก น้ำหนักบาร์ต้องเพิ่ม"],
+    [31, 34, "ปี 3 · ลีนทั้งตัว", "cut2", "PPL2", "ลด 0.5 กก./สัปดาห์ รักษากล้ามด้วยโปรตีน 170 ก."],
+    [35, 36, "ปี 3 · รักษาระดับ", "maintain", "PPL2", "รูปร่างเป้าหมาย: ไขมัน 12–15% กล้ามเห็นชัด"],
+  ];
+  // เส้นทางน้ำหนักเป้า (วัน, กก.)
+  const GOAL_PATH = [[0, 100], [365, 78], [455, 79], [640, 84], [730, 82.5], [910, 87], [1030, 82], [1095, 82]];
+  function goalAt(day) {
+    day = Math.max(0, Math.min(TOTAL_DAYS, day));
+    for (let i = 1; i < GOAL_PATH.length; i++) { const [d0, w0] = GOAL_PATH[i - 1], [d1, w1] = GOAL_PATH[i]; if (day <= d1) return w0 + ((w1 - w0) * (day - d0)) / (d1 - d0); }
+    return GOAL_PATH[GOAL_PATH.length - 1][1];
+  }
   const KEY = "coach365";
   const CHECKS = [["if", "ปิดครัวตามเวลา (IF)"], ["protein", "โปรตีนถึง 140 ก."], ["workout", "ออกกำลังกายตามแผน"], ["posture", "จัดบุคลิก 10 นาที"], ["meditate", "นั่งสมาธิ เช้า + ก่อนนอน"], ["rest", "พักผ่อนครบ 3 ชม."], ["room", "เก็บห้อง 10 นาที"], ["sleep", "นอนก่อน 23:30"]];
 
@@ -50,20 +71,22 @@
   function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => (t.hidden = true), 2200); }
 
   function plan(d) {
-    const i = Math.max(0, idx(d));
-    const month = Math.min(12, Math.floor(i / 30) + 1);
-    const phase = month <= 3 ? 1 : month <= 6 ? 2 : month <= 9 ? 3 : 4;
+    const i = Math.max(0, Math.min(TOTAL_DAYS - 1, idx(d)));
+    const month = Math.min(36, Math.floor(i / 30.4) + 1), year = Math.ceil(month / 12);
+    const pi = PHASES.findIndex(([a, b]) => month >= a && month <= b), P = PHASES[pi] || PHASES[PHASES.length - 1];
+    const phase = pi + 1, prog = P[4], mode = P[3];
     const wd = (d.getDay() + 6) % 7; // 0 = จันทร์
     const week = Math.floor(i / 7);
     let session = null, activity;
-    if (phase === 1) {
-      if ([0, 2, 4].includes(wd)) session = (week * 3 + [0, 2, 4].indexOf(wd)) % 2 === 0 ? "A" : "B";
-    } else {
-      session = { 0: "U1", 1: "L1", 3: "U2", 4: "L2" }[wd] || null;
-    }
+    if (prog === "AB") { if ([0, 2, 4].includes(wd)) session = (week * 3 + [0, 2, 4].indexOf(wd)) % 2 === 0 ? "A" : "B"; }
+    else if (prog === "UL") session = { 0: "U1", 1: "L1", 3: "U2", 4: "L2" }[wd] || null;
+    else if (prog === "PPL") session = { 0: "PUSH", 1: "PULL", 2: "LEGS", 4: "U2", 5: "L2" }[wd] || null;
+    else session = { 0: "PUSH2", 1: "PULL2", 2: "LEGS2", 4: "U1", 5: "L1" }[wd] || null;
     if (session) activity = "เวท " + SESSIONS[session].name;
-    else activity = wd === 6 ? "เดินยาว + Meal prep" : wd === 5 ? "เดินยาว 60–90 นาที" : "เดิน 20 นาที";
-    return { day: i + 1, month, phase, session, activity, steps: STEPS[month - 1], window: month === 1 ? "12:00–22:00" : "12:00–20:00" };
+    else activity = wd === 6 ? "เดินยาว + Meal prep" : wd === 5 ? "เดินยาว 60–90 นาที" : "เดิน 20 นาที + ยืด";
+    const target = TARGETS[mode];
+    return { day: i + 1, month, year, phase, phaseName: P[2], phaseNote: P[5], mode, modeTh: target.th, target, session, activity,
+      steps: year === 1 ? STEPS[Math.min(11, month - 1)] : 10000, window: month === 1 ? "12:00–22:00" : mode === "bulk" ? "10:00–20:00" : "12:00–20:00", goal: goalAt(i) };
   }
 
   // ---------- tabs ----------
@@ -82,10 +105,11 @@
   // ---------- header ----------
   function renderHeader() {
     const t = today(), p = plan(t), i = idx(t);
-    $("dayLabel").textContent = i < 0 ? `อีก ${-i} วันเริ่ม` : `วันที่ ${Math.min(i + 1, 365)} / 365`;
-    $("phaseLabel").textContent = `เฟส ${p.phase} · เดือน ${p.month}`;
+    TARGET = p.target;
+    $("dayLabel").textContent = i < 0 ? `อีก ${-i} วันเริ่ม` : `ปี ${p.year} · วันที่ ${i + 1 - (p.year - 1) * 365}`;
+    $("phaseLabel").textContent = `${p.phaseName} · เดือน ${p.month}/36 · ${p.modeTh}`;
     const last = lastWeight();
-    const pct = last == null ? 0 : Math.max(0, Math.min(1, (START_WEIGHT - last) / (START_WEIGHT - GOAL_WEIGHT)));
+    const pct = last == null ? 0 : p.year === 1 ? Math.max(0, Math.min(1, (START_WEIGHT - last) / (START_WEIGHT - GOAL_WEIGHT))) : Math.max(0, Math.min(1, (i - (p.year - 1) * 365) / 365));
     const C = 2 * Math.PI * 26;
     $("goalRing").innerHTML = `<svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="none" stroke="var(--sunk)" stroke-width="7"/><circle cx="32" cy="32" r="26" fill="none" stroke="var(--good)" stroke-width="7" stroke-linecap="round" stroke-dasharray="${(C * pct).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 32 32)"/><text x="32" y="37" text-anchor="middle" font-size="14" font-family="IBM Plex Mono,monospace" fill="var(--ink)">${Math.round(pct * 100)}%</text></svg>`;
   }
@@ -150,6 +174,7 @@
     let a = A.find((x) => !x.done && x.t <= now) || A.find((x) => !x.done);
     heroActs = a ? [a.act, a.altAct] : [];
     const h = $("hero");
+    if (i >= TOTAL_DAYS) { h.innerHTML = `<div class="eyebrow">ครบ 3 ปี</div><h2>จบแผนแล้ว 🏆</h2><p>ตอนนี้คือคนใหม่แล้ว รักษาโปรแกรม PPL และโปรตีน 160 ก. ต่อไป</p>`; heroActs = []; return; }
     if (i < 0) {
       const w = todayLog().weight;
       h.innerHTML = w == null
@@ -202,13 +227,13 @@
     setSteps(Number(s), Number(s) >= plan(today()).steps ? "ครบเป้าวันนี้ 🔥" : null);
   });
 
-  function refresh() { renderHeader(); renderHero(); renderChips(); renderQuick(); renderMedToday(); if ($("logDate").value === iso(today())) renderToday(); if (!document.querySelector('[data-view="food"]').hidden) window.Food?.render(); }
+  function refresh() { renderHeader(); renderHero(); renderChips(); renderQuick(); renderMedToday(); if ($("logDate").value === iso(today())) renderToday(); if (!document.querySelector('[data-view="food"]').hidden) window.Food?.render(); window.Extras?.light(); }
 
   function renderToday() {
     const d = parse($("logDate").value), p = plan(d);
     $("targets").innerHTML = [
-      ["ก้าวเดิน", fmt(p.steps)], ["หน้าต่างกิน", p.window], ["ออกกำลังกาย", p.activity], ["แคลอรี่ / โปรตีน", `${fmt(TARGET.kcal)} / ${TARGET.protein} ก.`],
-    ].map(([a, b]) => `<div class="tgt"><span class="eyebrow">${a}</span><b>${b}</b></div>`).join("");
+      ["ก้าวเดิน", fmt(p.steps)], ["หน้าต่างกิน", p.window], ["ออกกำลังกาย", p.activity], ["แคลอรี่ / โปรตีน", `${fmt(p.target.kcal)} / ${p.target.protein} ก.`],
+    ].map(([a, b]) => `<div class="tgt"><span class="eyebrow">${a}</span><b>${b}</b></div>`).join("") + `<div class="tgt" style="grid-column:1/-1"><span class="eyebrow">${p.phaseName} · น้ำหนักเป้าตอนนี้ ${p.goal.toFixed(1)} กก.</span><b style="font-size:15px">${p.phaseNote}</b></div>`;
     const e = S.logs[iso(d)] || {};
     ["weight", "waist", "steps", "spend"].forEach((k) => ($("f-" + k).value = e[k] ?? ""));
     $("f-note").value = e.note || "";
@@ -313,7 +338,8 @@
         ${sets ? `<div class="sets">${sets}</div>` : ""}
         ${withLog ? `<div class="last">${last ? `ครั้งก่อน (${last.date.slice(5)}): ${last.w ?? "–"} กก. × ${last.r ?? "–"}` : "ยังไม่มีสถิติ เริ่มเบาๆ เน้นท่าถูก"}</div>
         <div class="setsum">${cur.sets?.length ? cur.sets.map((s) => `<span class="pill ${s.done ? "ok" : ""}">${s.done ? "✓ " : ""}${s.w ?? "–"}×${s.r ?? "–"}</span>`).join("") : `<span class="small muted">วันนี้ยังไม่ได้เล่น</span>`}</div>` : ""}
-        ${ex.check ? `<button class="btn ghost small checkbtn" type="button" data-check="${id}">🎥 ตรวจท่าด้วยกล้อง</button>` : ""}
+        <div class="row" style="gap:6px;margin-top:8px">${ex.check ? `<button class="btn ghost small" type="button" data-check="${id}">🎥 ตรวจท่า</button>` : ""}<button class="btn ghost small" type="button" data-chart="${id}">📈 กราฟ</button></div>
+        <div class="exchart-box"></div>
       </div>
       <details><summary>วิธีทำ</summary><ol>${ex.cues.map((c) => `<li>${c}</li>`).join("")}</ol>
         <div class="small"><b>ระวัง:</b> ${ex.mistake}</div>
@@ -331,8 +357,7 @@
     } else {
       const s = SESSIONS[pick];
       $("sessionTitle").textContent = s.name;
-      const phaseNote = { 1: "เฟส 1: เน้นท่าถูก พัก 60–90 วิ", 2: "เฟส 2: Upper/Lower 4 วัน พัก 90 วิ", 3: "เฟส 3: +1 เซ็ตทุกท่า + HIIT 10 นาที 2 ครั้ง/สัปดาห์", 4: "เฟส 4: ขัดเกลา สัปดาห์ที่ 7 ของทุกรอบลดน้ำหนักลง 40%" }[p.phase];
-      $("sessionNote").textContent = `${phaseNote} · ทำครบจำนวนครั้งสูงสุดทุกเซ็ต ครั้งหน้าเพิ่ม 1–2.5 กก.`;
+      $("sessionNote").textContent = `${p.phaseName}: ${p.phaseNote} · ทำครบจำนวนครั้งสูงสุดทุกเซ็ต ครั้งหน้าเพิ่ม 1–2.5 กก.`;
       $("exList").innerHTML = s.items.map(([id, sets]) => exCard(id, sets, true)).join("");
     }
     $("finishCard").hidden = !pick;
@@ -449,24 +474,34 @@
   }
 
   // ---------- stats ----------
+  let chartFull = false;
+  $("chartToggle").addEventListener("click", () => { chartFull = !chartFull; renderStats(); });
   const entries = () => Object.keys(S.logs).sort().map((k) => ({ date: k, ...S.logs[k] }));
   function lastWeight() { const w = entries().filter((e) => e.weight != null); return w.length ? w[w.length - 1].weight : null; }
 
   function renderStats() {
     const es = entries(), ws = es.filter((e) => e.weight != null), t = today();
-    const W = 640, H = 260, L = 44, R = 16, T = 14, B = 34, y0 = 74, y1 = 102;
-    const x = (i) => L + ((W - L - R) * i) / 365, y = (v) => T + ((H - T - B) * (y1 - v)) / (y1 - y0);
+    // มุมมอง: ปีปัจจุบัน (365 วัน) หรือทั้ง 3 ปี
+    const yr = plan(t).year, full = chartFull, d0 = full ? 0 : (yr - 1) * 365, d1 = full ? TOTAL_DAYS : d0 + 365;
+    const W = 640, H = 260, L = 44, R = 16, T = 14, B = 34;
+    const goals = []; for (let d = d0; d <= d1; d += 5) goals.push(goalAt(d));
+    const y0 = Math.floor((Math.min(...goals, ...ws.filter((e) => idx(parse(e.date)) >= d0 && idx(parse(e.date)) <= d1).map((e) => e.weight)) - 3) / 2) * 2;
+    const y1 = Math.ceil((Math.max(...goals, ...ws.filter((e) => idx(parse(e.date)) >= d0 && idx(parse(e.date)) <= d1).map((e) => e.weight)) + 3) / 2) * 2;
+    const x = (i) => L + ((W - L - R) * (i - d0)) / (d1 - d0), y = (v) => T + ((H - T - B) * (y1 - v)) / (y1 - y0);
     let s = "";
-    for (let v = 76; v <= 100; v += 4) s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${v}</text>`;
-    for (let m = 0; m <= 12; m += 3) s += `<text x="${x((m * 365) / 12)}" y="${H - 12}" text-anchor="middle" font-size="11" fill="var(--muted)">${m ? "เดือน " + m : "เริ่ม"}</text>`;
-    s += `<line x1="${x(0)}" y1="${y(START_WEIGHT)}" x2="${x(365)}" y2="${y(GOAL_WEIGHT)}" stroke="var(--target)" stroke-width="2" stroke-dasharray="6 5"/>`;
-    const pts = [[0, START_WEIGHT], ...ws.map((e) => [Math.max(0, Math.min(365, idx(parse(e.date)))), Math.max(y0, Math.min(y1, e.weight))])];
+    const step = y1 - y0 > 16 ? 4 : 2;
+    for (let v = y0; v <= y1; v += step) s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${v}</text>`;
+    if (full) for (let yy = 0; yy <= 3; yy++) s += `<text x="${x(yy * 365)}" y="${H - 12}" text-anchor="${yy === 0 ? "start" : yy === 3 ? "end" : "middle"}" font-size="11" fill="var(--muted)">${yy ? "ปี " + yy + " จบ" : "เริ่ม"}</text>`;
+    else for (let m = 0; m <= 12; m += 3) s += `<text x="${x(d0 + (m * 365) / 12)}" y="${H - 12}" text-anchor="middle" font-size="11" fill="var(--muted)">${m ? "เดือน " + (m + (yr - 1) * 12) : yr === 1 ? "เริ่ม" : "ปี " + yr}</text>`;
+    s += `<path d="${goals.map((g, i) => (i ? "L" : "M") + x(d0 + i * 5).toFixed(1) + " " + y(g).toFixed(1)).join(" ")}" fill="none" stroke="var(--target)" stroke-width="2" stroke-dasharray="6 5"/>`;
+    const pts = [[0, START_WEIGHT], ...ws.map((e) => [Math.max(0, Math.min(TOTAL_DAYS, idx(parse(e.date)))), e.weight])].filter((p) => p[0] >= d0 && p[0] <= d1);
     if (pts.length > 1) s += `<path d="${pts.map((p, i) => (i ? "L" : "M") + x(p[0]).toFixed(1) + " " + y(p[1]).toFixed(1)).join(" ")}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>`;
     const lp = pts[pts.length - 1];
-    s += `<circle cx="${x(lp[0])}" cy="${y(lp[1])}" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`;
+    if (lp) s += `<circle cx="${x(lp[0])}" cy="${y(lp[1])}" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`;
     $("chart").innerHTML = s;
+    $("chartToggle").textContent = full ? "ดูเฉพาะปีนี้" : "ดูทั้ง 3 ปี";
 
-    const last = lastWeight(), tgtNow = START_WEIGHT - (START_WEIGHT - GOAL_WEIGHT) * Math.min(1, Math.max(0, idx(t)) / 365);
+    const last = lastWeight(), tgtNow = goalAt(idx(t));
     const wk = es.filter((e) => (t - parse(e.date)) / DAY < 7 && e.steps != null);
     const avg = wk.length ? wk.reduce((a, e) => a + e.steps, 0) / wk.length : null;
     let streak = 0, d = new Date(t); if (!S.logs[iso(d)]) d = new Date(d - DAY);
@@ -474,7 +509,7 @@
     const pt = plan(t).steps;
     $("bodyStats").innerHTML =
       `<div class="stat ${last == null ? "" : last <= tgtNow + 0.5 ? "good" : last <= tgtNow + 2 ? "warn" : "bad"}"><span class="eyebrow">ล่าสุด</span><b>${fmt(last, 1)}</b><span class="small muted">เป้าตอนนี้ ${fmt(tgtNow, 1)}</span></div>` +
-      `<div class="stat ${last != null && last < START_WEIGHT ? "good" : ""}"><span class="eyebrow">ลดไปแล้ว</span><b>${last == null ? "–" : fmt(START_WEIGHT - last, 1)}</b><span class="small muted">กก.</span></div>` +
+      `<div class="stat ${last != null && last < START_WEIGHT ? "good" : ""}"><span class="eyebrow">จากวันแรก</span><b>${last == null ? "–" : (last <= START_WEIGHT ? "−" : "+") + fmt(Math.abs(START_WEIGHT - last), 1)}</b><span class="small muted">กก. · ${plan(t).modeTh}</span></div>` +
       `<div class="stat ${avg == null ? "" : avg >= pt ? "good" : avg >= pt * 0.8 ? "warn" : "bad"}"><span class="eyebrow">ก้าวเฉลี่ย 7 วัน</span><b>${fmt(avg)}</b><span class="small muted">เป้า ${fmt(pt)}</span></div>` +
       `<div class="stat ${streak >= 3 ? "good" : ""}"><span class="eyebrow">ต่อเนื่อง</span><b>${streak} วัน</b><span class="small muted">ห้ามพลาด 2 วันติด</span></div>`;
     const ck = (v) => `<span class="pill ${v ? "ok" : "no"}">${v ? "✓" : "✗"}</span>`;
@@ -568,7 +603,7 @@
   function renderAll() { renderHeader(); renderToday(); renderMoney(); renderStats(); renderSchedule(); refresh(); }
   setInterval(() => { renderSchedule(); renderHero(); }, 60000);
   renderAll();
-  window.Coach = { get S() { return S; }, save, iso, today, toast, fmt, esc, START, addMeal, afterMeal, closeKitchen, plannedMeal, refresh, celebrate };
+  window.Coach = { get S() { return S; }, save, iso, today, toast, fmt, esc, START, addMeal, afterMeal, closeKitchen, plannedMeal, refresh, celebrate, plan, goalAt, PHASES, TOTAL_DAYS };
   const fromHash = () => { const h = location.hash.slice(1); if (["today", "food", "train", "money", "settings"].includes(h)) show(h); };
   addEventListener("hashchange", fromHash); addEventListener("DOMContentLoaded", fromHash);
 

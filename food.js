@@ -179,6 +179,7 @@
     const total = SHOPPING.reduce((a, s) => a + s[2], 0);
     $("shopping").innerHTML = `<div class="tbl"><table><tbody>${SHOPPING.map(([n, q, c]) => `<tr><td>${n}</td><td class="small muted">${q}</td><td class="num">${c}฿</td></tr>`).join("")}<tr><td><b>รวมต่อสัปดาห์</b></td><td></td><td class="num"><b>${C.fmt(total)}฿</b></td></tr></tbody></table></div>
       <p class="small muted">≈ ${C.fmt(total / 7)} บาท/วัน · ราคาจากตลาด/ห้างทั่วไป ต่างตามพื้นที่ · ซื้ออกไก่แพ็กใหญ่ที่แม็คโคร/โลตัสถูกกว่า</p>
+      <div id="shopChecks"></div>
       <div class="callout small"><b>Meal prep วันอาทิตย์ (ประมาณ 1.5 ชม.):</b><ol>
         <li>หุงข้าว 3 ถ้วยตวงสาร (ได้ข้าวสุกประมาณ 1.4 กก.) + วางมันเทศบนตะแกรงนึ่ง</li>
         <li>หมักอกไก่สำหรับย่าง ระหว่างนั้นต้มไข่ 12 ฟอง</li>

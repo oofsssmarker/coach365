@@ -43,7 +43,10 @@
         <span class="eyebrow">ก้าวเดินวันนี้ <span id="qStepsNow" class="num"></span></span>
         <div class="row" style="gap:6px" id="qSteps"></div>
       </div>
+      <div class="q" id="water"></div>
     </div>
+    <div class="card" id="weekly" hidden></div>
+    <div class="card" id="heat"></div>
     <div class="card" id="medCard">
       <div class="row between"><h2>นั่งสมาธิ</h2><span class="small muted num" id="medToday"></span></div>
       <div class="breath" id="breath" aria-hidden="true"><span></span></div>
@@ -77,11 +80,14 @@
       <div class="row"><button class="btn ghost" type="submit">บันทึก</button><span class="muted small" id="saveStatus"></span></div>
     </form>
     <div class="card">
-      <h2>น้ำหนักเทียบเป้า</h2>
+      <div class="row between"><h2>น้ำหนักเทียบเป้า</h2><button class="btn ghost small" type="button" id="chartToggle">ดูทั้ง 3 ปี</button></div>
       <svg class="chart" id="chart" viewBox="0 0 640 260" role="img" aria-label="กราฟน้ำหนัก"></svg>
-      <div class="legend"><span><i class="lg-t"></i>เป้า 100 → 78</span><span><i class="lg-a"></i>น้ำหนักจริง</span></div>
+      <div class="legend"><span><i class="lg-t"></i>เส้นเป้า (ลด → สร้างกล้าม → ลีน)</span><span><i class="lg-a"></i>น้ำหนักจริง</span></div>
       <div class="stats" id="bodyStats"></div>
+      <div id="trend"></div>
     </div>
+    <div class="card" id="body"></div>
+    <details class="card"><summary><h2 style="display:inline">แผน 3 ปี</h2></summary><div id="roadmap" class="roadmap"></div></details>
     <details class="card"><summary><h2 style="display:inline">บันทึกย้อนหลัง</h2></summary><div class="tbl"><table>
       <thead><tr><th>วันที่</th><th class="num">กก.</th><th class="num">เอว</th><th class="num">ก้าว</th><th class="num">kcal</th><th>IF</th><th>โปรตีน</th><th>เวท</th></tr></thead>
       <tbody id="history"></tbody></table></div></details>
@@ -242,5 +248,6 @@
 <script src="meals.js"></script>
 <script src="app.js"></script>
 <script src="food.js"></script>
+<script src="extras.js"></script>
 </body>
 </html>
