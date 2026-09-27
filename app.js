@@ -70,7 +70,7 @@
   function show(tab) {
     document.querySelectorAll(".tabbar button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === tab));
     document.querySelectorAll("[data-view]").forEach((v) => (v.hidden = v.dataset.view !== tab));
-    if (tab === "today") renderStats();
+    if (tab === "today") { renderStats(); renderHero(); }
     if (tab === "food") window.Food?.render();
     if (tab === "train") renderTrain();
     if (tab === "money") renderMoney();
@@ -94,6 +94,115 @@
   $("checks").innerHTML = CHECKS.map(([k, l]) => `<label class="chk"><input type="checkbox" id="c-${k}"> ${l}</label>`).join("");
   $("logDate").value = iso(today());
   $("logDate").addEventListener("change", () => { $("saveStatus").textContent = ""; renderToday(); });
+
+  const todayLog = () => (S.logs[iso(today())] = S.logs[iso(today())] || {});
+  const hmNow = () => { const n = new Date(); return `${pad(n.getHours())}:${pad(n.getMinutes())}`; };
+  const buzz = (p = 30) => { try { navigator.vibrate?.(p); } catch (e) {} };
+  function celebrate(msg) { buzz([40, 60, 40]); toast(msg); const h = $("hero"); h.classList.add("pop"); setTimeout(() => h.classList.remove("pop"), 600); }
+
+  // มื้อตามแผนของวันนี้ (จาก meals.js)
+  function plannedMeal(slot) {
+    const i = Math.max(0, idx(today())), wk = WEEKS[Math.floor(i / 7) % 2], row = wk[(today().getDay() + 6) % 7];
+    return mealRef(row[slot]);
+  }
+  function addMeal(items, src, photoId = null) {
+    const l = todayLog(); l.food = l.food || [];
+    l.food.push({ time: hmNow(), photoId, items: items.map((x) => ({ th: x.th, kcal: Math.round(x.kcal), p: Math.round(x.p) })), src });
+    afterMeal(l);
+  }
+  function afterMeal(l) {
+    const p = l.food.reduce((a, m) => a + m.items.reduce((b, i) => b + i.p, 0), 0);
+    l.protein = p >= TARGET.protein;
+    const closeAt = plan(today()).window.split("–")[1];
+    if (hmNow() > closeAt) { l.if = false; toast(`กินหลัง ${closeAt} แล้ว IF วันนี้ไม่ผ่าน พรุ่งนี้เอาใหม่`); }
+    save(); refresh();
+  }
+  function closeKitchen() { const l = todayLog(); l.if = true; l.kitchenClosed = hmNow(); save(); celebrate("ปิดครัวแล้ว เจอกันพรุ่งนี้เที่ยง 🔒"); }
+
+  // ---------- สิ่งที่ต้องทำต่อไป ----------
+  function actions() {
+    const l = todayLog(), p = plan(today()), wd = today().getDay(), meals = l.food?.length || 0, target = p.steps;
+    const A = [];
+    A.push({ t: "07:05", title: "นั่งสมาธิ 10 นาที", sub: "หายใจเข้า 4 ออก 6 แค่นั่งเฉยๆ", done: (l.meditateMin || 0) >= 10, btn: "เริ่มเลย", act: () => startMed(10) });
+    A.push({ t: "07:15", title: "จัดบุคลิก 10 นาที", sub: "3 ท่า แก้คอยื่น ไหล่ห่อ", done: !!l.posture, btn: "ดูท่า", act: () => { $("sessionPick").value = "P"; show("train"); }, alt: "ทำแล้ว", altAct: () => setFlag("posture", "บุคลิกดีขึ้นทุกวัน 👍") });
+    if (p.session) A.push({ t: "07:25", title: "เวท " + SESSIONS[p.session].name, sub: "30 นาที 5 ท่า มีรูปให้ดู", done: !!l.workout, btn: "เปิดท่าวันนี้", act: () => { $("sessionPick").value = ""; show("train"); } });
+    else A.push({ t: "07:25", title: p.activity, sub: "วันพักเวท เดินเบาๆ พอ", done: !!l.walkAm, btn: "เดินแล้ว", act: () => setFlag("walkAm", "เยี่ยม 🚶") });
+    const meal = (t, slot, title, need) => {
+      const m = plannedMeal(slot);
+      A.push({ t, title, sub: `ตามแผน: ${m.th} (${m.kcal} kcal)`, done: meals >= need, btn: "กินตามแผน ✓", act: () => { addMeal([m], "ตามแผน"); celebrate(`บันทึก ${m.th} แล้ว`); }, alt: "ถ่ายรูป", altAct: () => { show("food"); $("photoIn").click(); } });
+    };
+    meal("12:00", 1, "มื้อแรก", 1);
+    meal("16:00", 2, "มื้อว่างโปรตีน", 2);
+    meal("18:15", 3, "มื้อสุดท้าย", 3);
+    A.push({ t: "18:40", title: "ปิดครัว", sub: `ไม่กินอีกจนถึงพรุ่งนี้เที่ยง (IF ${p.window})`, done: !!l.if, btn: "ปิดครัวแล้ว 🔒", act: closeKitchen });
+    A.push({ t: "18:45", title: `เดินให้ครบ ${fmt(target)} ก้าว`, sub: "ลงรถก่อน 1–2 ป้าย หรือเดินรอบย่าน", done: (l.steps || 0) >= target, btn: "ครบแล้ว", act: () => setSteps(target, `${fmt(target)} ก้าว เก่งมาก 🔥`), alt: "ใส่ตัวเลข", altAct: () => $("qSteps").scrollIntoView({ behavior: "smooth", block: "center" }) });
+    A.push({ t: "22:00", title: "เก็บห้อง 10 นาที", sub: "ผ้าแห้งพับเก็บ ของวางที่เดิม", done: !!l.room, btn: "เก็บแล้ว", act: () => setFlag("room", "ห้องสะอาด สมองโล่ง ✨") });
+    if (wd === 0 || l.weight == null) A.push({ t: wd === 0 ? "08:00" : "22:05", title: wd === 0 ? "ชั่งน้ำหนัก + วัดรอบเอว" : "ชั่งน้ำหนัก", sub: "ตอนเช้าก่อนกินแม่นสุด แต่ตอนไหนก็ได้ดีกว่าไม่ชั่ง", done: l.weight != null, btn: "ใส่ตัวเลข", act: () => $("qWeight").scrollIntoView({ behavior: "smooth", block: "center" }) });
+    A.push({ t: "23:00", title: "สมาธิก่อนนอน 5 นาที", sub: "แล้ววางมือถือไกลเตียง", done: (l.meditateMin || 0) >= 15, btn: "เริ่มเลย", act: () => startMed(5) });
+    A.push({ t: "23:15", title: "นอน", sub: "7.5 ชั่วโมง คือยาลดน้ำหนักที่ดีที่สุด", done: !!l.sleep, btn: "นอนแล้ว 😴", act: () => setFlag("sleep", "ฝันดี พรุ่งนี้เจอกัน") });
+    return A;
+  }
+  let heroActs = [];
+  function renderHero() {
+    const A = actions(), now = hmNow(), i = idx(today());
+    const done = A.filter((a) => a.done).length;
+    $("scoreText").textContent = `${done} / ${A.length}`;
+    let a = A.find((x) => !x.done && x.t <= now) || A.find((x) => !x.done);
+    heroActs = a ? [a.act, a.altAct] : [];
+    const h = $("hero");
+    if (i < 0) {
+      const w = todayLog().weight;
+      h.innerHTML = w == null
+        ? `<div class="eyebrow">เริ่มวันจันทร์ 28 ก.ย.</div><h2>พรุ่งนี้วันแรก</h2><p>คืนนี้ทำแค่ 2 อย่าง: ชั่งน้ำหนักตั้งต้น และตั้งปลุก 07:00</p><div class="row"><button class="btn" type="button" data-hero="0">ใส่น้ำหนักตั้งต้น</button></div>`
+        : `<div class="eyebrow">เริ่มวันจันทร์ 28 ก.ย.</div><h2>พร้อมแล้ว ✓ ${w.toFixed(1)} กก.</h2><p>ตั้งปลุก 07:00 แล้วนอนก่อน 23:15 พรุ่งนี้เปิดแอปแล้วทำตามการ์ดนี้ทีละอย่าง</p><div class="row"><button class="btn ghost" type="button" data-hero="0">ตั้งค่าแจ้งเตือน</button></div>`;
+      heroActs = [w == null ? () => $("qWeight").scrollIntoView({ behavior: "smooth", block: "center" }) : () => show("settings")];
+      return;
+    }
+    if (!a) { h.innerHTML = `<div class="eyebrow">วันที่ ${i + 1}</div><h2>วันนี้ครบทุกอย่างแล้ว 🎉</h2><p>ไม่ต้องทำอะไรเพิ่ม ไปพักได้เลย</p>`; return; }
+    const late = a.t <= now, upcoming = !late;
+    h.innerHTML = `<div class="eyebrow">${upcoming ? `ต่อไป ${a.t}` : `ตอนนี้ · ${a.t}`} · เหลืออีก ${A.length - done} อย่าง</div><h2>${a.title}</h2><p>${a.sub}</p>
+      <div class="row"><button class="btn" type="button" data-hero="0">${a.btn}</button>${a.alt ? `<button class="btn ghost" type="button" data-hero="1">${a.alt}</button>` : ""}</div>`;
+  }
+  $("hero").addEventListener("click", (e) => { const b = e.target.closest("[data-hero]"); if (b) heroActs[b.dataset.hero]?.(); });
+
+  function setFlag(k, msg) { todayLog()[k] = true; save(); celebrate(msg); refresh(); }
+  function setSteps(n, msg) { todayLog().steps = n; save(); if (msg) celebrate(msg); refresh(); }
+
+  // ---------- ชิปเช็กลิสต์ (แตะเพื่อสลับ) ----------
+  const CHIP = { if: "ปิดครัว", protein: "โปรตีนครบ", workout: "ออกกำลังกาย", posture: "บุคลิก", meditate: "สมาธิ", rest: "พัก 3 ชม.", room: "เก็บห้อง", sleep: "นอนตรงเวลา" };
+  function renderChips() {
+    const l = todayLog();
+    $("chips").innerHTML = Object.entries(CHIP).map(([k, t]) => `<button type="button" class="chip ${l[k] ? "on" : ""}" data-chip="${k}" aria-pressed="${!!l[k]}">${l[k] ? "✓ " : ""}${t}</button>`).join("");
+  }
+  $("chips").addEventListener("click", (e) => {
+    const k = e.target.closest("[data-chip]")?.dataset.chip; if (!k) return;
+    const l = todayLog(); l[k] = !l[k]; if (k === "meditate" && l[k] && !(l.meditateMin >= 15)) l.meditateMin = 15;
+    save(); buzz(); refresh();
+  });
+
+  // ---------- ใส่น้ำหนัก / ก้าว แบบเร็ว ----------
+  let qw = null;
+  function renderQuick() {
+    const l = todayLog();
+    qw = l.weight ?? lastWeight() ?? START_WEIGHT;
+    $("qWeight").textContent = qw.toFixed(1);
+    $("qWeightOk").textContent = l.weight != null ? "บันทึกแล้ว ✓" : "ใช้เลขนี้";
+    $("qWeightOk").classList.toggle("ghost", l.weight != null);
+    const p = plan(today()), cur = l.steps || 0;
+    $("qStepsNow").textContent = cur ? `· ${fmt(cur)} / ${fmt(p.steps)}` : `· เป้า ${fmt(p.steps)}`;
+    const opts = [...new Set([3000, 5000, 7000, p.steps, 12000])].sort((a, b) => a - b);
+    $("qSteps").innerHTML = opts.map((n) => `<button type="button" class="chip ${cur === n ? "on" : ""}" data-steps="${n}">${n === p.steps ? "ครบเป้า " : ""}${fmt(n)}</button>`).join("") + `<button type="button" class="chip" data-steps="custom">อื่นๆ…</button>`;
+  }
+  document.querySelector(".quick").addEventListener("click", (e) => {
+    const w = e.target.closest("[data-w]")?.dataset.w;
+    if (w) { qw = Math.round((qw + Number(w)) * 10) / 10; $("qWeight").textContent = qw.toFixed(1); buzz(10); return; }
+    if (e.target.id === "qWeightOk") { const l = todayLog(); l.weight = qw; save(); celebrate(l.weight < START_WEIGHT ? `บันทึก ${qw.toFixed(1)} กก. ลดไป ${(START_WEIGHT - qw).toFixed(1)} แล้ว` : `บันทึก ${qw.toFixed(1)} กก.`); refresh(); return; }
+    const s = e.target.closest("[data-steps]")?.dataset.steps; if (!s) return;
+    if (s === "custom") { $("f-steps").scrollIntoView({ behavior: "smooth", block: "center" }); $("f-steps").focus(); return; }
+    setSteps(Number(s), Number(s) >= plan(today()).steps ? "ครบเป้าวันนี้ 🔥" : null);
+  });
+
+  function refresh() { renderHeader(); renderHero(); renderChips(); renderQuick(); renderMedToday(); if ($("logDate").value === iso(today())) renderToday(); if (!document.querySelector('[data-view="food"]').hidden) window.Food?.render(); }
 
   function renderToday() {
     const d = parse($("logDate").value), p = plan(d);
@@ -136,6 +245,7 @@
     let lock = null; try { lock = await navigator.wakeLock?.request("screen"); } catch (e) {}
     med = { min, end, lock, timer: setInterval(tickMed, 250) };
     $("breath").classList.add("on"); $("medStop").hidden = false;
+    $("medCard").scrollIntoView({ behavior: "smooth", block: "center" });
     document.querySelectorAll("[data-med]").forEach((b) => (b.hidden = true));
     medBell(); tickMed();
   }
@@ -158,23 +268,25 @@
       const k = iso(today()), l = (S.logs[k] = S.logs[k] || {});
       l.meditateMin = (l.meditateMin || 0) + used;
       if (l.meditateMin >= 15) l.meditate = true;
-      save(); renderMedToday(); if ($("logDate").value === k) $("c-meditate").checked = !!l.meditate;
+      save(); refresh();
     }
-    if (done) { medBell(); medBell(396); toast(`ครบ ${used} นาที เยี่ยมมาก`); }
+    if (done) { medBell(); medBell(396); celebrate(`ครบ ${used} นาที ใจนิ่งขึ้นแล้ว 🧘`); }
   }
   $("medBtns").addEventListener("click", (e) => { const m = e.target.dataset.med; if (m) startMed(Number(m)); });
   $("medStop").addEventListener("click", () => stopMed(false));
 
   const num = (id) => { const v = $(id).value; return v === "" ? null : Number(v); };
-  $("logForm").addEventListener("submit", (ev) => {
-    ev.preventDefault();
+  function saveForm(quiet) {
     const k = $("logDate").value, prev = S.logs[k] || {};
     const e = Object.assign({}, prev, { weight: num("f-weight"), waist: num("f-waist"), steps: num("f-steps"), spend: num("f-spend"), note: $("f-note").value.trim() });
-    CHECKS.forEach(([c]) => (e[c] = $("c-" + c).checked));
     S.logs[k] = e; save(); renderHeader(); renderStats();
+    if (k === iso(today())) { renderHero(); renderChips(); renderQuick(); }
     $("saveStatus").textContent = "บันทึกแล้ว " + new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
-    toast("บันทึกแล้ว");
-  });
+    if (!quiet) toast("บันทึกแล้ว");
+  }
+  let formT;
+  $("logForm").addEventListener("input", () => { clearTimeout(formT); formT = setTimeout(() => saveForm(true), 600); });
+  $("logForm").addEventListener("submit", (ev) => { ev.preventDefault(); clearTimeout(formT); saveForm(false); });
 
   // ---------- train ----------
   const sessionOpts = Object.entries(SESSIONS).map(([k, s]) => `<option value="${k}">${s.name}</option>`).join("");
@@ -227,6 +339,8 @@
       $("sessionNote").textContent = `${phaseNote} · ทำครบจำนวนครั้งสูงสุดทุกเซ็ต ครั้งหน้าเพิ่ม 1–2.5 กก.`;
       $("exList").innerHTML = s.items.map(([id, sets]) => exCard(id, sets, true)).join("");
     }
+    $("finishCard").hidden = !pick;
+    $("finishBtn").textContent = todayLog().workout ? "✅ วันนี้จบเซสชันแล้ว (กดอีกครั้งเพื่อบันทึกซ้ำ)" : (pick === "P" ? "✅ จัดบุคลิกครบแล้ว" : "✅ เล่นครบแล้ว จบเซสชัน");
     if (!$("library").innerHTML) $("library").innerHTML = Object.keys(EXERCISES).map((id) => exCard(id, "", false)).join("");
     Figures.start();
   }
@@ -246,6 +360,21 @@
     poseCheck(ex.check, ex.th, b.closest("#exList .ex"));
   });
   $("postureBtn").addEventListener("click", () => poseCheck("posture", "ตรวจบุคลิกท่ายืน", null));
+  // ปุ่มเดียวจบเซสชัน: ติ๊กทุกท่า ใช้น้ำหนัก/ครั้งจากครั้งก่อนถ้าไม่ได้กรอก
+  $("finishBtn").addEventListener("click", () => {
+    const pick = $("sessionPick").value || plan(today()).session; if (!pick) return;
+    const dk = iso(today()), l = todayLog(), lifts = (l.lifts = l.lifts || {});
+    SESSIONS[pick].items.forEach(([id]) => {
+      const cur = (lifts[id] = lifts[id] || {}), prev = lastLift(id, dk);
+      if (cur.w == null && prev?.w != null) cur.w = prev.w;
+      if (cur.r == null && prev?.r != null) cur.r = prev.r;
+      cur.done = true;
+    });
+    if (pick === "P") l.posture = true; else l.workout = true;
+    save(); renderTrain(); refresh();
+    celebrate(pick === "P" ? "บุคลิกดีขึ้นทุกวัน 👍" : "จบเซสชันแล้ว เก่งมาก 💪");
+    setTimeout(() => show("today"), 900);
+  });
 
   $("exList").addEventListener("change", (ev) => {
     const card = ev.target.closest(".ex"); if (!card) return;
@@ -257,8 +386,8 @@
     if (f === "done") l.done = ev.target.checked; else l[f] = ev.target.value === "" ? null : Number(ev.target.value);
     card.classList.toggle("done", !!l.done);
     const items = SESSIONS[$("sessionPick").value || plan(today()).session]?.items || [];
-    if (items.length && items.every(([x]) => lifts[x]?.done)) { log.workout = true; toast("จบเซสชันแล้ว เก่งมาก 💪"); }
-    save();
+    if (items.length && items.every(([x]) => lifts[x]?.done)) { log.workout = true; celebrate("จบเซสชันแล้ว เก่งมาก 💪"); }
+    save(); renderHero(); renderChips();
   });
 
   // ---------- money ----------
@@ -418,10 +547,10 @@
     ev.target.value = "";
   });
 
-  function renderAll() { renderHeader(); renderToday(); renderMoney(); renderStats(); renderSchedule(); renderMedToday(); }
-  setInterval(renderSchedule, 60000);
+  function renderAll() { renderHeader(); renderToday(); renderMoney(); renderStats(); renderSchedule(); refresh(); }
+  setInterval(() => { renderSchedule(); renderHero(); }, 60000);
   renderAll();
-  window.Coach = { get S() { return S; }, save, iso, today, toast, fmt, esc, START };
+  window.Coach = { get S() { return S; }, save, iso, today, toast, fmt, esc, START, addMeal, afterMeal, closeKitchen, plannedMeal, refresh, celebrate };
   const fromHash = () => { const h = location.hash.slice(1); if (["today", "food", "train", "money", "settings"].includes(h)) show(h); };
   addEventListener("hashchange", fromHash); addEventListener("DOMContentLoaded", fromHash);
 

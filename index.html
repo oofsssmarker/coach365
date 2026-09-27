@@ -28,7 +28,22 @@
 
   <!-- วันนี้ -->
   <section data-view="today">
-    <div class="targets" id="targets"></div>
+    <div class="hero" id="hero"></div>
+    <div class="card">
+      <div class="row between"><h2>วันนี้ทำแล้ว</h2><b class="num" id="scoreText"></b></div>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div class="card quick">
+      <div class="q">
+        <span class="eyebrow">น้ำหนักวันนี้</span>
+        <div class="stepper"><button type="button" data-w="-0.1" aria-label="ลด 0.1">−</button><b class="num" id="qWeight">–</b><button type="button" data-w="0.1" aria-label="เพิ่ม 0.1">+</button></div>
+        <div class="row" style="gap:6px"><button class="btn ghost small" type="button" data-w="-0.5">−0.5</button><button class="btn ghost small" type="button" data-w="0.5">+0.5</button><button class="btn small" type="button" id="qWeightOk">ใช้เลขนี้</button></div>
+      </div>
+      <div class="q">
+        <span class="eyebrow">ก้าวเดินวันนี้ <span id="qStepsNow" class="num"></span></span>
+        <div class="row" style="gap:6px" id="qSteps"></div>
+      </div>
+    </div>
     <div class="card" id="medCard">
       <div class="row between"><h2>นั่งสมาธิ</h2><span class="small muted num" id="medToday"></span></div>
       <div class="breath" id="breath" aria-hidden="true"><span></span></div>
@@ -40,24 +55,26 @@
         <button class="btn ghost" type="button" id="medStop" hidden>หยุด</button>
       </div>
     </div>
-    <details class="card" id="schedCard" open>
+    <details class="card" id="schedCard">
       <summary><h2 style="display:inline">ตารางวันนี้</h2> <span class="small muted" id="restTotal"></span></summary>
+      <div class="targets" id="targets" style="margin-top:10px"></div>
       <div id="schedule" class="sched"></div>
     </details>
     <form id="logForm" class="card">
       <div class="row between">
-        <h2>บันทึกประจำวัน</h2>
+        <h2>บันทึกเพิ่มเติม</h2>
         <input type="date" id="logDate" aria-label="วันที่">
       </div>
+      <p class="small muted" style="margin:0">ไม่บังคับ บันทึกให้อัตโนมัติเมื่อพิมพ์</p>
       <div class="fields">
         <label class="f">น้ำหนัก (กก.)<input id="f-weight" type="number" step="0.1" inputmode="decimal" placeholder="100.0"></label>
         <label class="f">รอบเอว (ซม.)<input id="f-waist" type="number" step="0.5" inputmode="decimal" placeholder="วันอาทิตย์"></label>
         <label class="f">ก้าวเดิน<input id="f-steps" type="number" step="100" inputmode="numeric" placeholder="0"></label>
         <label class="f">ค่ากิน (บาท)<input id="f-spend" type="number" step="1" inputmode="numeric" placeholder="≤150"></label>
       </div>
-      <div class="checks" id="checks"></div>
+      <div class="checks" id="checks" hidden></div>
       <label class="f">จด 3 บรรทัด: ทำอะไรดี / พลาดอะไร / พรุ่งนี้ทำอะไร<textarea id="f-note" rows="3"></textarea></label>
-      <div class="row"><button class="btn" type="submit">บันทึก</button><span class="muted small" id="saveStatus"></span></div>
+      <div class="row"><button class="btn ghost" type="submit">บันทึก</button><span class="muted small" id="saveStatus"></span></div>
     </form>
     <div class="card">
       <h2>น้ำหนักเทียบเป้า</h2>
@@ -75,7 +92,8 @@
     <div class="card">
       <div class="row between"><h2>อาหารวันนี้</h2><input type="date" id="foodDate" aria-label="วันที่"></div>
       <div class="foodsum" id="foodSum"></div>
-      <label class="btn big" for="photoIn">📷 ถ่ายรูปอาหาร</label>
+      <div id="planToday" class="plantoday"></div>
+      <label class="btn big" for="photoIn">📷 ถ่ายรูปอาหาร (ไม่อยู่ในแผน)</label>
       <input type="file" id="photoIn" accept="image/*" capture="environment" hidden>
     </div>
 
@@ -118,6 +136,10 @@
       <button class="btn ghost" type="button" id="postureBtn">ตรวจบุคลิกท่ายืน (คอยื่น ไหล่ห่อ)</button>
     </div>
     <div id="exList" class="exlist"></div>
+    <div class="card" id="finishCard" hidden>
+      <button class="btn big" type="button" id="finishBtn">✅ เล่นครบแล้ว จบเซสชัน</button>
+      <p class="small muted" style="margin:0">ไม่ต้องกรอกทุกช่อง กดปุ่มนี้ปุ่มเดียว แอปจะใช้น้ำหนักครั้งก่อนให้ แล้วค่อยแก้ทีหลังถ้าอยาก</p>
+    </div>
     <details class="card">
       <summary><h2 style="display:inline">คลังท่าทั้งหมด</h2></summary>
       <div id="library" class="exlist" style="margin-top:12px"></div>

@@ -49,7 +49,8 @@
         <div class="small">${m.items.map((x) => C.esc(x.th)).join(", ")}</div>${m.src ? `<div class="small muted">${C.esc(m.src)}</div>` : ""}
         <button class="btn ghost small" type="button" data-delmeal="${i}">ลบ</button></div></article>`;
     }));
-    $("mealList").innerHTML = rows.join("") || `<p class="muted small">ยังไม่มีบันทึกวันนี้ ถ่ายรูปหรือเลือกจากแผนด้านล่าง</p>`;
+    $("mealList").innerHTML = rows.join("") || `<p class="muted small">ยังไม่มีบันทึกวันนี้ กดปุ่มมื้อตามแผนด้านบน หรือถ่ายรูป</p>`;
+    renderPlanToday();
     renderDraft();
   }
 
@@ -95,18 +96,38 @@
     const dk = $("foodDate").value;
     let photoId = null;
     if (draft.blob) { photoId = dk + "-" + Date.now().toString(36); await putPhoto(photoId, draft.blob); }
-    const now = new Date();
-    dayFood(dk).push({ time: `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`, photoId, items: draft.items.map((x) => ({ th: x.th, kcal: Math.round(x.kcal), p: Math.round(x.p) })), src: draft.ai ? "ประเมินโดย AI + แก้เอง" : "" });
-    const t = sum(dayFood(dk));
-    C.S.logs[dk].protein = t.p >= TARGET.protein;
-    C.save(); draft = null; C.toast("บันทึกมื้อแล้ว"); render();
+    const src = draft.ai ? "ประเมินโดย AI + แก้เอง" : "";
+    if (dk === C.iso(C.today())) C.addMeal(draft.items, src, photoId);
+    else {
+      dayFood(dk).push({ time: "--:--", photoId, items: draft.items.map((x) => ({ th: x.th, kcal: Math.round(x.kcal), p: Math.round(x.p) })), src });
+      C.S.logs[dk].protein = sum(dayFood(dk)).p >= TARGET.protein; C.save();
+    }
+    draft = null; C.celebrate("บันทึกมื้อแล้ว 🍽"); render();
   });
   $("mealList").addEventListener("click", async (e) => {
     const i = e.target.dataset.delmeal; if (i == null) return;
     if (!e.target.dataset.armed) { e.target.dataset.armed = "1"; e.target.textContent = "ยืนยันลบ"; return; }
     const m = dayFood($("foodDate").value).splice(i, 1)[0];
     if (m?.photoId) delPhoto(m.photoId).catch(() => {});
-    C.save(); render();
+    C.save(); C.refresh(); render();
+  });
+
+  // มื้อตามแผนวันนี้: กดปุ่มเดียว
+  function renderPlanToday() {
+    const dk = $("foodDate").value, isToday = dk === C.iso(C.today());
+    const box = $("planToday"); if (!isToday) { box.innerHTML = ""; return; }
+    const meals = dayFood(dk), l = C.S.logs[dk] || {};
+    const slots = [["12:00", 1, "มื้อแรก"], ["16:00", 2, "ว่าง"], ["18:15", 3, "มื้อสุดท้าย"]];
+    box.innerHTML = `<div class="eyebrow">แผนวันนี้ · แตะปุ่มเดียวถ้ากินตามแผน</div>` + slots.map(([t, slot, name], i) => {
+      const m = C.plannedMeal(slot), done = meals.length > i;
+      return `<button type="button" class="planbtn ${done ? "done" : ""}" data-slot="${slot}" ${done ? "disabled" : ""}><span class="num muted">${t}</span><span><b>${done ? "✓ " : ""}${m.th}</b><br><span class="small muted">${name} · ${m.kcal} kcal · โปรตีน ${m.p} ก.</span></span></button>`;
+    }).join("") + `<button type="button" class="planbtn ${l.if ? "done" : ""}" id="closeKitchen" ${l.if ? "disabled" : ""}><span class="num muted">🔒</span><span><b>${l.if ? "✓ ปิดครัวแล้ว" : "ปิดครัว"}</b><br><span class="small muted">กดหลังมื้อสุดท้าย แล้วไม่กินอีกจนพรุ่งนี้</span></span></button>`;
+  }
+  $("planToday").addEventListener("click", (e) => {
+    if (e.target.closest("#closeKitchen")) { C.closeKitchen(); render(); return; }
+    const slot = e.target.closest("[data-slot]")?.dataset.slot; if (!slot) return;
+    const m = C.plannedMeal(Number(slot));
+    C.addMeal([m], "ตามแผน"); C.celebrate(`บันทึก ${m.th} แล้ว`); render();
   });
   $("foodDate").addEventListener("change", render);
 
